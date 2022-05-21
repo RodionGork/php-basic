@@ -151,7 +151,7 @@ function takeExprCmp(&$tokens) {
 
 function takeExprSum(&$tokens) {
     $res = takeExprMul($tokens);
-    while ($tokens && $tokens[0] == 'o+' || $tokens[0] == 'o-') {
+    while ($tokens && ($tokens[0] == 'o+' || $tokens[0] == 'o-')) {
         $op = array_shift($tokens);
         $mul = takeExprMul($tokens);
         array_add($res, $mul);
@@ -161,11 +161,22 @@ function takeExprSum(&$tokens) {
 }
 
 function takeExprMul(&$tokens) {
-    $res = takeExprVal($tokens);
-    while ($tokens && $tokens[0] == 'o*' || $tokens[0] == 'o/') {
+    $res = takeExprPwr($tokens);
+    while ($tokens && ($tokens[0] == 'o*' || $tokens[0] == 'o/')) {
         $op = array_shift($tokens);
-        $val = takeExprVal($tokens);
-        array_add($res, $val);
+        $pwr = takeExprPwr($tokens);
+        array_add($res, $pwr);
+        $res[] = $op;
+    }
+    return $res;
+}
+
+function takeExprPwr(&$tokens) {
+    $res = takeExprVal($tokens);
+    while ($tokens && $tokens[0] == 'o^') {
+        $op = array_shift($tokens);
+        $pwr = takeExprPwr($tokens);
+        array_add($res, $pwr);
         $res[] = $op;
     }
     return $res;

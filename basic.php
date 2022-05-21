@@ -131,13 +131,13 @@ class BasicInterpreter {
         }
         return $stack[0];
     }
-    
+
     function setupBinaryOps() {
         $this->binaryOps['+'] = function($a, $b) { return $a + $b; };
         $this->binaryOps['-'] = function($a, $b) { return $a - $b; };
         $this->binaryOps['*'] = function($a, $b) { return $a * $b; };
         $this->binaryOps['/'] = function($a, $b) { return $a / $b; };
-        $this->binaryOps['^'] = function($a, $b) { return $a ^ $b; };
+        $this->binaryOps['^'] = function($a, $b) { return pow($a, $b); };
         $this->binaryOps['<'] = function($a, $b) { return $a < $b; };
         $this->binaryOps['>'] = function($a, $b) { return $a > $b; };
         $this->binaryOps['='] = function($a, $b) { return $a === $b; };
