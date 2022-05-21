@@ -15,6 +15,7 @@ function &tokenize($line) {
         $m = [];
         if (preg_match('/^[a-z][a-z0-9]*\$?/i', $line, $m)) {
             $type = 'w';
+            $m[0] = strtoupper($m[0]);
         } elseif (preg_match('/^[0-9]+/', $line, $m)) {
             $type = 'n';
         } elseif (preg_match('/^(?:>=|<=|<>|>|<|=|\+|-|\*|\/|\^)/', $line, $m)) {
@@ -62,10 +63,10 @@ function expectToken($token, $expected, $errmsg) {
         $token = $token ? $token[0] : '';
     }
     if (!is_array($expected)) {
-        if (strcasecmp($token, $expected) === 0) return;
+        if ($token === $expected) return;
     } else {
         foreach ($expected as $exp) {
-            if (strcasecmp($token, $exp) === 0) return;
+            if ($token === $exp) return;
         }
     }
     expectTokenFailed($token, $errmsg);

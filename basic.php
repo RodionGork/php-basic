@@ -14,9 +14,11 @@ class BasicInterpreter {
     public $vars = [];
     public $sourceLineNums = [];
     private $binaryOps = [];
+    private $funcs = [];
 
     function __construct() {
         $this->setupBinaryOps();
+        $this->setupFunctions();
     }
 
     function parseLines(&$lines) {
@@ -35,7 +37,7 @@ class BasicInterpreter {
                 while (count($tokens) > 0) {
                     $stmt = takeStatement($tokens);
                     if ($stmt) {
-                        $stmt[0] = strtoupper(tokenBody($stmt[0]));
+                        $stmt[0] = tokenBody($stmt[0]);
                         $out[] = $stmt;
                     }
                     if ($tokens) {
@@ -127,23 +129,48 @@ class BasicInterpreter {
                 $v2 = array_pop($stack);
                 $v1 = array_pop($stack);
                 $stack[] = call_user_func($this->binaryOps[$body], $v1, $v2);
+            } elseif ($v[0] == 'f') {
+                $v1 = array_pop($stack);
+                $stack[] = call_user_func($this->funcs[$body], $v1);
             }
         }
         return $stack[0];
     }
 
     function setupBinaryOps() {
-        $this->binaryOps['+'] = function($a, $b) { return $a + $b; };
+        $this->binaryOps['+'] = function($a, $b) {
+            return is_string($a) || is_string($b) ? $a . $b : $a + $b; };
         $this->binaryOps['-'] = function($a, $b) { return $a - $b; };
         $this->binaryOps['*'] = function($a, $b) { return $a * $b; };
         $this->binaryOps['/'] = function($a, $b) { return $a / $b; };
+        $this->binaryOps['%'] = function($a, $b) { return $a % $b; };
         $this->binaryOps['^'] = function($a, $b) { return pow($a, $b); };
-        $this->binaryOps['<'] = function($a, $b) { return $a < $b; };
-        $this->binaryOps['>'] = function($a, $b) { return $a > $b; };
-        $this->binaryOps['='] = function($a, $b) { return $a === $b; };
-        $this->binaryOps['<='] = function($a, $b) { return $a <= $b; };
-        $this->binaryOps['>='] = function($a, $b) { return $a >= $b; };
-        $this->binaryOps['<>'] = function($a, $b) { return $a !== $b; };
+        $this->binaryOps['<'] = function($a, $b) { return logicRes($a < $b); };
+        $this->binaryOps['>'] = function($a, $b) { return logicRes($a > $b); };
+        $this->binaryOps['='] = function($a, $b) { return logicRes($a == $b); };
+        $this->binaryOps['<='] = function($a, $b) { return logicRes($a <= $b); };
+        $this->binaryOps['>='] = function($a, $b) { return logicRes($a >= $b); };
+        $this->binaryOps['<>'] = function($a, $b) { return logicRes($a != $b); };
+        $this->binaryOps['&'] = function($a, $b) { return logicRes($a && $b); };
+        $this->binaryOps['|'] = function($a, $b) { return logicRes($a || $b); };
     }
 
+    function setupFunctions() {
+        $this->funcs['ABS'] = function($x) { return $x >= 0 ? $x : -$x; };
+        $this->funcs['ATN'] = function($x) { return atan($x); };
+        $this->funcs['COS'] = function($x) { return cos($x); };
+        $this->funcs['EXP'] = function($x) { return exp($x); };
+        $this->funcs['INT'] = function($x) { return floor($x); };
+        $this->funcs['LOG'] = function($x) { return log($x); };
+        $this->funcs['RND'] = function($x) { return rand() / (getrandmax() + 1); };
+        $this->funcs['SIN'] = function($x) { return sin($x); };
+        $this->funcs['SGN'] = function($x) { return ($x > 0) - ($x < 0); };
+        $this->funcs['SQR'] = function($x) { return sqrt($x); };
+        $this->funcs['TAN'] = function($x) { return tan($x); };
+    }
+
+}
+
+function logicRes($y) {
+    return (!!$y) ? 1 : 0;
 }

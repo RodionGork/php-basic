@@ -8,13 +8,12 @@ $lines = explode("\n", file_get_contents('php://stdin'));
 
 $basic->parseLines($lines);
 
-var_export($basic->labels);
-var_export($basic->code);
+//var_export($basic->labels);
+//var_export($basic->code);
 foreach ($basic->errors as $err) {
     echo "$err\n";
 }
 
-echo "Executing:\n";
 $basic->run();
 
 /*

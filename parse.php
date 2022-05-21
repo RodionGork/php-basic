@@ -6,6 +6,9 @@ require_once 'utils.php';
 
 const relops = ['o=', 'o>', 'o<', 'o>=', 'o<=', 'o<>'];
 
+const funcs = ['ABS', 'ATN', 'COS', 'EXP', 'INT', 'LOG', 'RND', 'SIN', 'SGN',
+    'SQR', 'TAN'];
+
 function stripLabel(&$tokens) {
     $tkn0 = $tokens[0];
     $type0 = $tkn0[0];
@@ -17,13 +20,13 @@ function stripLabel(&$tokens) {
         return null;
     }
     array_splice($tokens, 0, $remove);
-    return strtoupper(tokenBody($tkn0));
+    return tokenBody($tkn0);
 }
 
 function takeStatement(&$tokens) {
     $cmd = $tokens[0];
     expectTokenType($cmd, 'w', 'Command or Variable expected');
-    $cmd = strtoupper(tokenBody($cmd));
+    $cmd = tokenBody($cmd);
     switch ($cmd) {
         case 'REM':
             $res = array_splice($tokens, 0);
@@ -82,7 +85,7 @@ function takeGoto(&$tokens) {
         throwLineError('GOTO without label');
     }
     if ($tokens[0][0] == 'w') {
-        $res[] = ['q' . strtoupper(tokenBody(array_shift($tokens)))];
+        $res[] = ['q' . tokenBody(array_shift($tokens))];
     } else {
         $res[] = takeExpr($tokens);
     }
@@ -108,34 +111,59 @@ function takeAssign(&$tokens) {
     expectToken($tokens, 'o=', 'Assignment operator expected');
     array_shift($tokens);
     $expr = takeExpr($tokens);
-    return ['wLET', $expr, $var];
+    $res = ['wLET', $expr];
+    array_add($res, $var);
+    return $res;
 }
 
 function takeVariable(&$tokens) {
     expectTokenType($tokens[0], 'w', 'Variable expected');
-    $name = strtoupper(array_shift($tokens));
-    if (!$tokens || $token[0] != 'p(') {
+    $name = array_shift($tokens);
+    if (!$tokens || $tokens[0] != 'p(') {
         $name[0] = 'v';
-        return $name;
+        return [$name];
     }
     array_shift($tokens);
-    $name[0] = 'a';
-    $subscripts = [takeExpr($tokens)];
+    $name[0] = isFuncName(tokenBody($name)) ? 'f' : 'a';
+    $funcExpr = takeExpr($tokens);
     while (1) {
         if (!$tokens) {
             throwLineError('Unexpected end of array subscripts');
         }
         expectToken($tokens[0], ['p,', 'p)'], 'Garbage in array subscripts');
-        if ($tokens[0] == 'p)') {
+        if (array_shift($tokens) == 'p)') {
             break;
         }
-        $subscripts[] = takeExpr($tokens);
+        array_add($funcExpr, takeExpr($tokens));
     }
-    return [$name, $subscripts];
+    $funcExpr[] = $name;
+    return $funcExpr;
 }
 
 function takeExpr(&$tokens) {
-    return takeExprCmp($tokens);
+    return takeExprOr($tokens);
+}
+
+function takeExprOr(&$tokens) {
+    $res = takeExprAnd($tokens);
+    while ($tokens && $tokens[0] === 'wOR') {
+        array_shift($tokens);
+        $and = takeExprAnd($tokens);
+        array_add($res, $and);
+        $res[] = 'o|';
+    }
+    return $res;
+}
+
+function takeExprAnd(&$tokens) {
+    $res = takeExprCmp($tokens);
+    while ($tokens && $tokens[0] === 'wAND') {
+        array_shift($tokens);
+        $cmp = takeExprCmp($tokens);
+        array_add($res, $cmp);
+        $res[] = 'o&';
+    }
+    return $res;
 }
 
 function takeExprCmp(&$tokens) {
@@ -162,11 +190,12 @@ function takeExprSum(&$tokens) {
 
 function takeExprMul(&$tokens) {
     $res = takeExprPwr($tokens);
-    while ($tokens && ($tokens[0] == 'o*' || $tokens[0] == 'o/')) {
+    while ($tokens && ($tokens[0] == 'o*' || $tokens[0] == 'o/'
+            || $tokens[0] === 'wMOD')) {
         $op = array_shift($tokens);
         $pwr = takeExprPwr($tokens);
         array_add($res, $pwr);
-        $res[] = $op;
+        $res[] = $op[0] == 'o' ? $op : 'o%';
     }
     return $res;
 }
@@ -191,7 +220,7 @@ function takeExprVal(&$tokens) {
         case 'q':
             return [array_shift($tokens)];
         case 'w':
-            return [takeVariable($tokens)];
+            return takeVariable($tokens);
         default:
             if ($tokens[0] == 'p(') {
                 return takeSubExpr($tokens);
@@ -224,3 +253,6 @@ function takeNegVal(&$tokens) {
     return $res;
 }
 
+function isFuncName($name) {
+    return in_array($name, funcs) || preg_match('/^FN[A-Z]/', $name);
+}
