@@ -10,11 +10,15 @@ $basic->parseLines($lines);
 
 //var_export($basic->labels);
 //var_export($basic->code);
-foreach ($basic->errors as $err) {
-    echo "$err\n";
-}
 
-$basic->run();
+if (!$basic->errors) {
+    $basic->run();
+} else {
+    echo "Code not executed because of parse errors:\n";
+    foreach ($basic->errors as $err) {
+        echo "    $err\n";
+    }
+}
 
 /*
 

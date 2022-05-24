@@ -14,6 +14,7 @@ class BasicInterpreter {
     public $vars = [];
     public $arrays = [];
     public $dims = [];
+    public $callStack = [];
     public $sourceLineNums = [];
     private $binaryOps = [];
     private $funcs = [];
@@ -59,36 +60,43 @@ class BasicInterpreter {
 
     function run() {
         $pc = 0;
+        $pc2 = 0;
         try {
             while ($pc < count($this->code)) {
                 $lineNum = $this->sourceLineNums[$pc];
-                $line = &$this->code[$pc++];
-                foreach ($line as &$stmt) {
-                    switch ($stmt[0]) {
-                        case 'LET':
-                            $this->execAssign($stmt);
-                            break;
-                        case 'IF':
-                            if (!$this->execIfThen($stmt)) {
-                                continue 3;
-                            }
-                            break;
-                        case 'GOTO':
-                            $this->execGoto($stmt, $pc);
-                            break;
-                        case 'REM':
-                            break;
-                        case 'PRINT':
-                            $this->execPrint($stmt);
-                            break;
-                        case 'DIM':
-                            $this->execDim($stmt);
-                            break;
-                        case 'END':
-                            return;
-                        default:
-                            throwLineError("Command not implemented: {$stmt[0]}\n");
-                    }
+                $line = &$this->code[$pc];
+                $stmt = &$line[$pc2];
+                if (++$pc2 >= count($line)) {
+                    $pc++;
+                    $pc2 = 0;
+                }
+                switch ($stmt[0]) {
+                    case 'LET':
+                        $this->execAssign($stmt);
+                        break;
+                    case 'IF':
+                        $this->execIfThen($stmt, $pc, $pc2);
+                        break;
+                    case 'GOTO':
+                        $this->execGoto($stmt, $pc, $pc2);
+                        break;
+                    case 'GOSUB':
+                        $this->execGosub($stmt, $pc, $pc2);
+                        break;
+                    case 'RETURN':
+                        $this->execReturn($stmt, $pc, $pc2);
+                    case 'REM':
+                        break;
+                    case 'PRINT':
+                        $this->execPrint($stmt);
+                        break;
+                    case 'DIM':
+                        $this->execDim($stmt);
+                        break;
+                    case 'END':
+                        return;
+                    default:
+                        throwLineError("Command not implemented: {$stmt[0]}\n");
                 }
             }
         } catch (SyntaxException $e) {
@@ -116,17 +124,39 @@ class BasicInterpreter {
         }
     }
 
-    function execIfThen(&$stmt) {
+    function execIfThen(&$stmt, &$pc, &$pc2) {
         $res = $this->evalExpr($stmt[1]);
-        return ($res !== 0 && $res !== '' && $res !== false);
+        if ($res !== 0 && $res !== '' && $res !== false) {
+            return;
+        }
+        $pc++;
+        $pc2 = 0;
     }
 
-    function execGoto(&$stmt, &$pc) {
+    function execGoto(&$stmt, &$pc, &$pc2) {
         $label = $this->evalExpr($stmt[1]);
         if (!isset($this->labels[$label])) {
             throwLineError("No such label: $label");
         }
         $pc = $this->labels[$label];
+        $pc2 = 0;
+    }
+
+    function execGosub(&$stmt, &$pc, &$pc2) {
+        $this->callStack[] = ['c', $pc, $pc2];
+        $this->execGoto($stmt, $pc, $pc2);
+    }
+
+    function execReturn(&$stmt, &$pc, &$pc2) {
+        while ($this->callStack) {
+            $elem = array_pop($this->callStack);
+            if ($elem[0] == 'c') {
+                $pc = $elem[1];
+                $pc2 = $elem[2];
+                return;
+            }
+        }
+        throwLineError('RETURN executed but there was no GOSUB before');
     }
 
     function execDim(&$stmt) {

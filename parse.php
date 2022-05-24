@@ -37,7 +37,8 @@ function takeStatement(&$tokens) {
         case 'IF':
             return takeIfThen($tokens);
         case 'GOTO':
-            return takeGoto($tokens);
+        case 'GOSUB':
+            return takeGo($tokens);
         case 'NEXT':
             return takeNext($tokens);
         case 'PRINT':
@@ -54,10 +55,11 @@ function takeStatement(&$tokens) {
 function takePrint(&$tokens) {
     $res = [array_shift($tokens)];
     $nextExpr = true;
+    $delim = '';
     while ($tokens && $tokens[0] != 'p:') {
-        $delim = '';
         if ($nextExpr) {
              $res[] = takeExpr($tokens);
+             $delim = '';
         } else {
             $delim = array_shift($tokens);
             expectToken($delim, ['p,', 'p;'], 'Delimiter in PRINT expected');
@@ -81,10 +83,10 @@ function takeIfThen(&$tokens) {
     return $res;
 }
 
-function takeGoto(&$tokens) {
+function takeGo(&$tokens) {
     $res = [array_shift($tokens)];
     if (!$tokens) {
-        throwLineError('GOTO without label');
+        throwLineError(tokenBody($res[0]) . ' without label');
     }
     if ($tokens[0][0] == 'w') {
         $res[] = ['q' . tokenBody(array_shift($tokens))];
