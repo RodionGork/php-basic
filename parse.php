@@ -42,6 +42,8 @@ function takeStatement(&$tokens) {
             return takeNext($tokens);
         case 'PRINT':
             return takePrint($tokens);
+        case 'DIM':
+            return takeDim($tokens);
         case 'LET':
             array_shift($tokens);
         default:
@@ -100,6 +102,12 @@ function takeNext(&$tokens) {
     return array_splice($tokens, 0, 2);
 }
 
+function takeDim(&$tokens) {
+    $res = [array_shift($tokens)];
+    $res[] = takeVariable($tokens);
+    return $res;
+}
+
 function takeAssign(&$tokens) {
     if (count($tokens) < 3) {
         throwLineError('Unexpected end of statement');
@@ -116,7 +124,7 @@ function takeAssign(&$tokens) {
     return $res;
 }
 
-function takeVariable(&$tokens) {
+function takeVariable(&$tokens, $funcsAlso = false) {
     expectTokenType($tokens[0], 'w', 'Variable expected');
     $name = array_shift($tokens);
     if (!$tokens || $tokens[0] != 'p(') {
@@ -124,13 +132,22 @@ function takeVariable(&$tokens) {
         return [$name];
     }
     array_shift($tokens);
-    $name[0] = isFuncName(tokenBody($name)) ? 'f' : 'a';
+    if (isFuncName(tokenBody($name))) {
+        if (!$funcsAlso) {
+            throwLineError("Function $name isn't expected here");
+        }
+        $name[0] = 'f';
+        $msgPart = 'array subscripts';
+    } else {
+        $name[0] = 'a';
+        $msgPart = 'function arguments';
+    }
     $funcExpr = takeExpr($tokens);
     while (1) {
         if (!$tokens) {
-            throwLineError('Unexpected end of array subscripts');
+            throwLineError("Unexpected end of $msgPart");
         }
-        expectToken($tokens[0], ['p,', 'p)'], 'Garbage in array subscripts');
+        expectToken($tokens[0], ['p,', 'p)'], "Garbage in $msgPart");
         if (array_shift($tokens) == 'p)') {
             break;
         }
@@ -220,7 +237,7 @@ function takeExprVal(&$tokens) {
         case 'q':
             return [array_shift($tokens)];
         case 'w':
-            return takeVariable($tokens);
+            return takeVariable($tokens, true);
         default:
             if ($tokens[0] == 'p(') {
                 return takeSubExpr($tokens);

@@ -12,6 +12,8 @@ class BasicInterpreter {
     public $labels = [];
     public $errors = [];
     public $vars = [];
+    public $arrays = [];
+    public $dims = [];
     public $sourceLineNums = [];
     private $binaryOps = [];
     private $funcs = [];
@@ -76,11 +78,14 @@ class BasicInterpreter {
                             break;
                         case 'REM':
                             break;
-                        case 'END':
-                            return;
                         case 'PRINT':
                             $this->execPrint($stmt);
                             break;
+                        case 'DIM':
+                            $this->execDim($stmt);
+                            break;
+                        case 'END':
+                            return;
                         default:
                             throwLineError("Command not implemented: {$stmt[0]}\n");
                     }
@@ -99,7 +104,16 @@ class BasicInterpreter {
 
     function execAssign(&$stmt) {
         $value = $this->evalExpr($stmt[1]);
-        $this->vars[tokenBody($stmt[2])] = $value;
+        if (count($stmt) == 3) {
+            $this->vars[tokenBody($stmt[2])] = $value;
+        } else {
+            $subscr = array_slice($stmt, 2, count($stmt) - 3);
+            $stack = [];
+            $this->evalExpr($subscr, $stack);
+            $name = tokenBody($stmt[count($stmt) - 1]);
+            $idx = $this->arrayIndex($name, $stack);
+            $this->arrays[$name][$idx] = $value;
+        }
     }
 
     function execIfThen(&$stmt) {
@@ -115,8 +129,56 @@ class BasicInterpreter {
         $pc = $this->labels[$label];
     }
 
-    function evalExpr(&$expr) {
-        $stack = [];
+    function execDim(&$stmt) {
+        for ($i = 1; $i < count($stmt); $i++) {
+            $expr = $stmt[$i];
+            $var = tokenBody($expr[count($expr) - 1]);
+            if (array_key_exists($var, $this->arrays)) {
+                throwLineError("Array '$var' already exists");
+            }
+            $expr = array_slice($expr, 0, count($expr) - 1);
+            $dims = [];
+            $this->evalExpr($expr, $dims);
+            $this->checkSubscripts($dims);
+            $this->dims[$var] = $dims;
+            $p = 1;
+            foreach ($dims as $d) {
+                $p *= $d;
+            }
+            $this->arrays[$var] = array_fill(0, $p, 0);
+            for ($j = 0; $j < $p; $j++) {
+                $this->arrays[$var][$j] = $j * 100;
+            }
+        }
+    }
+
+    function checkSubscripts(&$subs, &$dims = null) {
+        foreach ($subs as $v) {
+            if (!is_int($v)) {
+                throwLineError("Non-integer array index: $v");
+            }
+            if ($v < 0) {
+                throwLineError("Negative array index: $v");
+            }
+        }
+        if ($dims === null) {
+            return;
+        }
+        $n = count($dims);
+        if (count($subs) != $n) {
+            throwLineError("Wrong number of subscripts, should be $n");
+        }
+        for ($i = 0; $i < $n; $i++) {
+            if ($subs[$i] >= $dims[$i]) {
+                throwLineError("Index#$i out of range: {$subs[$i]}");
+            }
+        }
+    }
+
+    function evalExpr(&$expr, &$stack = null) {
+        if ($stack === null) {
+            $stack = [];
+        }
         foreach ($expr as &$v) {
             $body = tokenBody($v);
             if ($v[0] == 'n') {
@@ -132,9 +194,26 @@ class BasicInterpreter {
             } elseif ($v[0] == 'f') {
                 $v1 = array_pop($stack);
                 $stack[] = call_user_func($this->funcs[$body], $v1);
+            } elseif ($v[0] == 'a') {
+                $name = tokenBody($v);
+                $idx = $this->arrayIndex($name, $stack);
+                array_splice($stack, 0, null, $this->arrays[$name][$idx]);
             }
         }
         return $stack[0];
+    }
+
+    function arrayIndex($name, &$subs) {
+        if (!array_key_exists($name, $this->arrays)) {
+            throwLineError("Array not defined: $name");
+        }
+        $dims = &$this->dims[$name];
+        $this->checkSubscripts($subs, $dims);
+        $idx = $subs[0];
+        for ($i = 1; $i < count($dims); $i++) {
+            $idx = $idx * $dims[$i] + $subs[$i];
+        }
+        return $idx;
     }
 
     function setupBinaryOps() {
