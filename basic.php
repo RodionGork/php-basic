@@ -176,9 +176,6 @@ class BasicInterpreter {
                 $p *= $d;
             }
             $this->arrays[$var] = array_fill(0, $p, 0);
-            for ($j = 0; $j < $p; $j++) {
-                $this->arrays[$var][$j] = $j * 100;
-            }
         }
     }
 

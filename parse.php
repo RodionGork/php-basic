@@ -107,6 +107,10 @@ function takeNext(&$tokens) {
 function takeDim(&$tokens) {
     $res = [array_shift($tokens)];
     $res[] = takeVariable($tokens);
+    while ($tokens && $tokens[0] == 'p,') {
+        array_shift($tokens);
+        $res[] = takeVariable($tokens);
+    }
     return $res;
 }
 
