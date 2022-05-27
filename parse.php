@@ -43,6 +43,8 @@ function takeStatement(&$tokens) {
             return takeNext($tokens);
         case 'PRINT':
             return takePrint($tokens);
+        case 'INPUT':
+            return takeInput($tokens);
         case 'DIM':
             return takeDim($tokens);
         case 'LET':
@@ -58,8 +60,8 @@ function takePrint(&$tokens) {
     $delim = '';
     while ($tokens && $tokens[0] != 'p:') {
         if ($nextExpr) {
-             $res[] = takeExpr($tokens);
-             $delim = '';
+            $res[] = takeExpr($tokens);
+            $delim = '';
         } else {
             $delim = array_shift($tokens);
             expectToken($delim, ['p,', 'p;'], 'Delimiter in PRINT expected');
@@ -71,6 +73,26 @@ function takePrint(&$tokens) {
     }
     if ($delim !== 'p;') {
         $res[] = ["q\n"];
+    }
+    return $res;
+}
+
+function takeInput(&$tokens) {
+    $res = [array_shift($tokens)];
+    $nextExpr = true;
+    $delim = '';
+    while ($tokens && $tokens[0] != 'p:') {
+        if ($nextExpr) {
+            if ($tokens[0][0] != 'q') {
+                $res[] = takeVariable($tokens);
+            } else {
+                $res[] = array_shift($tokens);
+            }
+        } else {
+            $delim = array_shift($tokens);
+            expectToken($delim, 'p,', 'Delimiter in INPUT expected');
+        }
+        $nextExpr = !$nextExpr;
     }
     return $res;
 }
