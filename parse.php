@@ -148,7 +148,11 @@ function takeAssign(&$tokens) {
     array_shift($tokens);
     $expr = takeExpr($tokens);
     $res = ['wLET', $expr];
-    array_add($res, $var);
+    $varexpr = [array_pop($var)];
+    if ($var) {
+        $varexpr[] = $var;
+    }
+    $res[] = $varexpr;
     return $res;
 }
 

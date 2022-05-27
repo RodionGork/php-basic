@@ -11,6 +11,7 @@ Basic language interpreter in PHP
 
 - `IF` ... `THEN` (no else, multiple statements per line, old-school style)
 - `PRINT` with commans and semicolons
+- `INPUT` automatically deciding on type of value (numeric or string)
 - `GOTO` and `GOSUB` allowing expression as argument, `RETURN`
 - `DIM`
 - `LET` which could be omitted in assignment
@@ -33,7 +34,6 @@ Basic language interpreter in PHP
 
 ### Statements to implement yet
 
-- `INPUT`
 - `READ` and `DATA` (and perhaps `RESTORE`)
 - `FOR` and `NEXT`
 - `DEFFN` for user's functions

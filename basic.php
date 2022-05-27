@@ -90,6 +90,9 @@ class BasicInterpreter {
                     case 'PRINT':
                         $this->execPrint($stmt);
                         break;
+                    case 'INPUT':
+                        $this->execInput($stmt);
+                        break;
                     case 'DIM':
                         $this->execDim($stmt);
                         break;
@@ -110,15 +113,29 @@ class BasicInterpreter {
         }
     }
 
+    function execInput(&$stmt) {
+        for ($i = 1; $i < count($stmt); $i++) {
+            $expr = $stmt[$i];
+            if (is_string($expr)) {
+                echo tokenBody($expr);
+            } else {
+                $this->setVariable($expr, scanInput());
+            }
+        }
+    }
+
     function execAssign(&$stmt) {
         $value = $this->evalExpr($stmt[1]);
-        if (count($stmt) == 3) {
-            $this->vars[tokenBody($stmt[2])] = $value;
+        $this->setVariable($stmt[2], $value);
+    }
+
+    function setVariable(&$expr, $value) {
+        $name = tokenBody($expr[0]);
+        if (count($expr) == 1) {
+            $this->vars[$name] = $value;
         } else {
-            $subscr = array_slice($stmt, 2, count($stmt) - 3);
             $stack = [];
-            $this->evalExpr($subscr, $stack);
-            $name = tokenBody($stmt[count($stmt) - 1]);
+            $this->evalExpr($expr[1], $stack);
             $idx = $this->arrayIndex($name, $stack);
             $this->arrays[$name][$idx] = $value;
         }
@@ -275,8 +292,4 @@ class BasicInterpreter {
         $this->funcs['TAN'] = function($x) { return tan($x); };
     }
 
-}
-
-function logicRes($y) {
-    return (!!$y) ? 1 : 0;
 }

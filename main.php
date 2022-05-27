@@ -4,7 +4,8 @@ require_once 'basic.php';
 
 $basic = new \basicinterpreter\BasicInterpreter();
 
-$lines = explode("\n", file_get_contents('php://stdin'));
+$file = count($argv) > 1 ? $argv[1] : 'php://stdin';
+$lines = explode("\n", file_get_contents($file));
 
 $basic->parseLines($lines);
 
