@@ -21,18 +21,25 @@ function logicRes($y) {
     return (!!$y) ? 1 : 0;
 }
 
+function isSpace($c) {
+    return strpos(" \t\r\n", $c) !== false;
+}
+
 function scanInput() {
     $val = '';
     while (1) {
         $c = fgetc(STDIN);
-        if (!ctype_space($c)) {
+        if ($c === false) {
+            throwLineError('Unexpected end of input');
+        }
+        if (!isSpace($c)) {
             $val = $c;
             break;
         }
     }
     while (1) {
         $c = fgetc(STDIN);
-        if (ctype_space($c)) {
+        if ($c === false || isSpace($c)) {
             break;
         }
         $val .= $c;

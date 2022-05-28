@@ -9,6 +9,8 @@ require_once 'parse.php';
 class BasicInterpreter {
 
     public $code = [];
+    public $readdata = [];
+    public $readptr = 0;
     public $labels = [];
     public $errors = [];
     public $vars = [];
@@ -59,6 +61,14 @@ class BasicInterpreter {
     }
 
     function run() {
+        $errData = $this->extractData();
+        if ($errData) {
+            return $errData;
+        }
+        return $this->executeCode();
+    }
+
+    function executeCode() {
         $pc = 0;
         $pc2 = 0;
         try {
@@ -86,12 +96,19 @@ class BasicInterpreter {
                     case 'RETURN':
                         $this->execReturn($stmt, $pc, $pc2);
                     case 'REM':
+                    case 'DATA':
                         break;
                     case 'PRINT':
                         $this->execPrint($stmt);
                         break;
                     case 'INPUT':
                         $this->execInput($stmt);
+                        break;
+                    case 'READ':
+                        $this->execRead($stmt);
+                        break;
+                    case 'RESTORE':
+                        $this->execRestore($stmt);
                         break;
                     case 'DIM':
                         $this->execDim($stmt);
@@ -103,8 +120,9 @@ class BasicInterpreter {
                 }
             }
         } catch (SyntaxException $e) {
-            echo "Runtime error (line #$lineNum): {$e->getMessage()}\n";
+            return "Runtime error (line #$lineNum): {$e->getMessage()}";
         }
+        return null;
     }
 
     function execPrint(&$stmt) {
@@ -124,6 +142,20 @@ class BasicInterpreter {
         }
     }
 
+    function execRead(&$stmt) {
+        for ($i = 1; $i < count($stmt); $i++) {
+            if ($this->readptr >= count($this->readdata)) {
+                throwLineError('Out of data for READ');
+            }
+            $expr = $stmt[$i];
+            $this->setVariable($expr, $this->readdata[$this->readptr++]);
+        }
+    }
+
+    function execRestore(&$stmt) {
+        $this->readptr = 0;
+    }
+
     function execAssign(&$stmt) {
         $value = $this->evalExpr($stmt[1]);
         $this->setVariable($stmt[2], $value);
@@ -139,6 +171,14 @@ class BasicInterpreter {
             $idx = $this->arrayIndex($name, $stack);
             $this->arrays[$name][$idx] = $value;
         }
+    }
+
+    function getVariable($name) {
+        $value = $this->vars[$name];
+        if ($value === null) {
+            throwLineError("Variable not defined: $name");
+        }
+        return $value;
     }
 
     function execIfThen(&$stmt, &$pc, &$pc2) {
@@ -230,7 +270,7 @@ class BasicInterpreter {
             } elseif ($v[0] == 'q') {
                 $stack[] = $body;
             } elseif ($v[0] == 'v') {
-                $stack[] = $this->vars[$body];
+                $stack[] = $this->getVariable($body);
             } elseif ($v[0] == 'o') {
                 $v2 = array_pop($stack);
                 $v1 = array_pop($stack);
@@ -258,6 +298,28 @@ class BasicInterpreter {
             $idx = $idx * $dims[$i] + $subs[$i];
         }
         return $idx;
+    }
+
+    function extractData() {
+        try {
+            foreach ($this->code as $num => &$line) {
+                $lineNum = $this->sourceLineNums[$num];
+                $stmt = &$line[0];
+                if ($stmt[0] == 'DATA') {
+                    for ($i = 1; $i < count($stmt); $i++) {
+                        $this->readdata[] = $this->evalExpr($stmt[$i]);
+                    }
+                }
+                for ($i = 1; $i < count($line); $i++) {
+                    if ($line[$i][0] == 'DATA') {
+                        throwLineError('DATA statement should be first in its line');
+                    }
+                }
+            }
+        } catch (SyntaxException $e) {
+            return "Runtime error (line #$lineNum): {$e->getMessage()}";
+        }
+        return null;
     }
 
     function setupBinaryOps() {

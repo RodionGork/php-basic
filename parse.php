@@ -33,6 +33,7 @@ function takeStatement(&$tokens) {
             return array_slice($res, 0, 1);
         case 'END':
         case 'RETURN':
+        case 'RESTORE':
             return array_splice($tokens, 0, 1);
         case 'IF':
             return takeIfThen($tokens);
@@ -47,6 +48,10 @@ function takeStatement(&$tokens) {
             return takeInput($tokens);
         case 'DIM':
             return takeDim($tokens);
+        case 'READ':
+            return takeRead($tokens);
+        case 'DATA':
+            return takeData($tokens);
         case 'LET':
             array_shift($tokens);
         default:
@@ -77,20 +82,42 @@ function takePrint(&$tokens) {
     return $res;
 }
 
-function takeInput(&$tokens) {
+function takeInput(&$tokens, $isRead = false) {
     $res = [array_shift($tokens)];
+    $cmd = tokenBody($res[0]);
     $nextExpr = true;
     $delim = '';
     while ($tokens && $tokens[0] != 'p:') {
         if ($nextExpr) {
-            if ($tokens[0][0] != 'q') {
+            if ($tokens[0][0] != 'q' || $isRead) {
                 $res[] = takeVariable($tokens);
             } else {
                 $res[] = array_shift($tokens);
             }
         } else {
             $delim = array_shift($tokens);
-            expectToken($delim, 'p,', 'Delimiter in INPUT expected');
+            expectToken($delim, 'p,', "Comma in $cmd expected");
+        }
+        $nextExpr = !$nextExpr;
+    }
+    return $res;
+}
+
+function takeRead(&$tokens) {
+    return takeInput($tokens, true);
+}
+
+function takeData(&$tokens) {
+    $res = [array_shift($tokens)];
+    $nextExpr = true;
+    $delim = '';
+    while ($tokens && $tokens[0] != 'p:') {
+        if ($nextExpr) {
+            $expr = takeExpr($tokens);
+            $res[] = $expr;
+        } else {
+            $delim = array_shift($tokens);
+            expectToken($delim, 'p,', 'Comma in DATA expected');
         }
         $nextExpr = !$nextExpr;
     }

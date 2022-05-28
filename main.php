@@ -9,11 +9,13 @@ $lines = explode("\n", file_get_contents($file));
 
 $basic->parseLines($lines);
 
-//var_export($basic->labels);
-//var_export($basic->code);
+//var_export($basic->code); echo "\n";
 
 if (!$basic->errors) {
-    $basic->run();
+    $err = $basic->run();
+    if ($err) {
+        echo "$err\n";
+    }
 } else {
     echo "Code not executed because of parse errors:\n";
     foreach ($basic->errors as $err) {
