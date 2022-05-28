@@ -87,6 +87,12 @@ class BasicInterpreter {
                     case 'IF':
                         $this->execIfThen($stmt, $pc, $pc2);
                         break;
+                    case 'FOR':
+                        $this->execFor($stmt, $pc, $pc2);
+                        break;
+                    case 'NEXT':
+                        $this->execNext($stmt, $pc, $pc2);
+                        break;
                     case 'GOTO':
                         $this->execGoto($stmt, $pc, $pc2);
                         break;
@@ -188,6 +194,40 @@ class BasicInterpreter {
         }
         $pc++;
         $pc2 = 0;
+    }
+
+    function execFor(&$stmt, $pc, $pc2) {
+        $var = tokenBody($stmt[1]);
+        $from = $this->evalExpr($stmt[2]);
+        $till = $this->evalExpr($stmt[3]);
+        $step = count($stmt) > 4 ? $this->evalExpr($stmt[4]) : 1;
+        if ($step <= 0) {
+            throwLineError('Negative or zero STEP in FOR is not allowed');
+        }
+        $this->callStack[] = ['f', $var, $step, $till, $pc, $pc2];
+        $this->vars[$var] = $from;
+    }
+
+    function execNext(&$stmt, &$pc, &$pc2) {
+        $frame = null;
+        if ($this->callStack) {
+            $frame = $this->callStack[count($this->callStack) - 1];
+        }
+        if ($frame === null || array_shift($frame) != 'f') {
+            throwLineError('NEXT without preceding FOR execution');
+        }
+        list($var, $step, $till, $pcnext, $pc2next) = $frame;
+        if ($var != tokenBody($stmt[1])) {
+            throwLineError('NEXT for wrong variable, expected: ' . $var);
+        }
+        $value = $this->vars[$var] + $step;
+        if ($value > $till) {
+            array_pop($this->callStack);
+            return;
+        }
+        $this->vars[$var] = $value;
+        $pc = $pcnext;
+        $pc2 = $pc2next;
     }
 
     function execGoto(&$stmt, &$pc, &$pc2) {

@@ -14,6 +14,8 @@ _interactive mode (REPL) is not added yet, mainly due to lack of usage for it_
 - `PRINT` with commans and semicolons
 - `INPUT` automatically deciding on type of value (numeric or string)
 - `GOTO` and `GOSUB` allowing expression as argument, `RETURN`
+- `FOR` and `NEXT` statements (with optional positive `STEP`)
+- `READ`, `DATA` and `RESTORE`
 - `DIM`
 - `LET` which could be omitted in assignment
 - `END`
@@ -35,8 +37,6 @@ _interactive mode (REPL) is not added yet, mainly due to lack of usage for it_
 
 ### Statements to implement yet
 
-- `READ` and `DATA` (and perhaps `RESTORE`)
-- `FOR` and `NEXT`
 - `DEFFN` for user's functions
 
 ### Extra features yet to come

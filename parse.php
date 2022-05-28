@@ -40,6 +40,8 @@ function takeStatement(&$tokens) {
         case 'GOTO':
         case 'GOSUB':
             return takeGo($tokens);
+        case 'FOR':
+            return takeFor($tokens);
         case 'NEXT':
             return takeNext($tokens);
         case 'PRINT':
@@ -140,6 +142,24 @@ function takeGo(&$tokens) {
     if ($tokens[0][0] == 'w') {
         $res[] = ['q' . tokenBody(array_shift($tokens))];
     } else {
+        $res[] = takeExpr($tokens);
+    }
+    return $res;
+}
+
+function takeFor(&$tokens) {
+    $res = [array_shift($tokens)];
+    expectTokenType($tokens, 'w', 'Garbage instead of variable in FOR');
+    $var = takeVariable($tokens);
+    $res[] = $var[0];
+    expectToken($tokens, 'o=', 'equals sign expected in FOR');
+    array_shift($tokens);
+    $res[] = takeExpr($tokens);
+    expectToken($tokens, 'wTO', 'TO expected in FOR');
+    array_shift($tokens);
+    $res[] = takeExpr($tokens);
+    if ($tokens && $tokens[0] == 'wSTEP') {
+        array_shift($tokens);
         $res[] = takeExpr($tokens);
     }
     return $res;
