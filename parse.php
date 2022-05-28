@@ -94,7 +94,7 @@ function takeInput(&$tokens, $isRead = false) {
     while ($tokens && $tokens[0] != 'p:') {
         if ($nextExpr) {
             if ($tokens[0][0] != 'q' || $isRead) {
-                $res[] = takeVariable($tokens);
+                $res[] = takeLvalue($tokens);
             } else {
                 $res[] = array_shift($tokens);
             }
@@ -213,19 +213,14 @@ function takeAssign(&$tokens) {
     if (count($tokens) < 3) {
         throwLineError('Unexpected end of statement');
     }
-    $var = takeVariable($tokens);
+    $var = takeLvalue($tokens);
     if (!$tokens) {
         throwLineError('Unexpected end of assignment');
     }
     expectToken($tokens, 'o=', 'Assignment operator expected');
     array_shift($tokens);
     $expr = takeExpr($tokens);
-    $res = ['wLET', $expr];
-    $varexpr = [array_pop($var)];
-    if ($var) {
-        $varexpr[] = $var;
-    }
-    $res[] = $varexpr;
+    $res = ['wLET', $expr, $var];
     return $res;
 }
 
@@ -260,6 +255,15 @@ function takeVariable(&$tokens, $funcsAlso = false) {
     }
     $funcExpr[] = $name;
     return $funcExpr;
+}
+
+function takeLvalue(&$tokens) {
+    $var = takeVariable($tokens);
+    $res = [array_pop($var)];
+    if ($var) {
+        $res[] = $var;
+    }
+    return $res;
 }
 
 function takeExpr(&$tokens) {

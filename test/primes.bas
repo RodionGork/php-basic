@@ -1,0 +1,25 @@
+N = 1000
+DIM P(N)
+DATA 2,3,5,7
+FOR I = 0 TO 3 : READ P(I) : NEXT I
+K = 4
+V = 9
+
+LOOP:
+I = 0
+SEEK:
+C = P(I)
+IF C*C > V THEN GOTO FOUND
+IF V MOD C = 0 THEN GOTO SKIP
+I = I+1
+GOTO SEEK
+
+FOUND:
+P(K) = V : K = K+1 : IF K >= N THEN GOTO DONE
+SKIP:
+V = V+2
+GOTO LOOP
+
+DONE:
+FOR I = 0 TO N-1 : PRINT P(I); " "; : NEXT I
+PRINT
