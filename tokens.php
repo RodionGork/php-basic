@@ -16,7 +16,7 @@ function &tokenize($line) {
         if (preg_match('/^[a-z][a-z0-9]*\$?/i', $line, $m)) {
             $type = 'w';
             $m[0] = strtoupper($m[0]);
-        } elseif (preg_match('/^[0-9]+/', $line, $m)) {
+        } elseif (preg_match('/^(?:[0-9]*\.)?[0-9]+(?:e[\+\-]?[0-9]+)?/i', $line, $m)) {
             $type = 'n';
         } elseif (preg_match('/^(?:>=|<=|<>|>|<|=|\+|-|\*|\/|\^)/', $line, $m)) {
             $type = 'o';

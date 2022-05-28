@@ -238,7 +238,7 @@ class BasicInterpreter {
 
     function checkSubscripts(&$subs, &$dims = null) {
         foreach ($subs as $v) {
-            if (!is_int($v)) {
+            if ($v != intval($v)) {
                 throwLineError("Non-integer array index: $v");
             }
             if ($v < 0) {
@@ -266,7 +266,7 @@ class BasicInterpreter {
         foreach ($expr as &$v) {
             $body = tokenBody($v);
             if ($v[0] == 'n') {
-                $stack[] = intval($body);
+                $stack[] = floatval($body);
             } elseif ($v[0] == 'q') {
                 $stack[] = $body;
             } elseif ($v[0] == 'v') {
@@ -345,7 +345,7 @@ class BasicInterpreter {
         $this->funcs['ATN'] = function($x) { return atan($x); };
         $this->funcs['COS'] = function($x) { return cos($x); };
         $this->funcs['EXP'] = function($x) { return exp($x); };
-        $this->funcs['INT'] = function($x) { return floor($x); };
+        $this->funcs['INT'] = function($x) { return intval($x); };
         $this->funcs['LOG'] = function($x) { return log($x); };
         $this->funcs['RND'] = function($x) { return rand() / (getrandmax() + 1); };
         $this->funcs['SIN'] = function($x) { return sin($x); };

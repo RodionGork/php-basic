@@ -6,6 +6,7 @@ Basic language interpreter in PHP
 - multi-dimension arrays with zero-based indices
 - calculated goto (both with numeric and text labels)
 
+_interactive mode (REPL) is not added yet, mainly due to lack of usage for it_
 
 ### Statements already working
 
