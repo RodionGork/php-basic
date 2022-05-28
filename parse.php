@@ -50,6 +50,8 @@ function takeStatement(&$tokens) {
             return takeInput($tokens);
         case 'DIM':
             return takeDim($tokens);
+        case 'DEF':
+            return takeDef($tokens);
         case 'READ':
             return takeRead($tokens);
         case 'DATA':
@@ -180,6 +182,30 @@ function takeDim(&$tokens) {
         array_shift($tokens);
         $res[] = takeVariable($tokens);
     }
+    return $res;
+}
+
+function takeDef(&$tokens) {
+    $res = [array_shift($tokens)];
+    expectTokenType($tokens, 'w', 'Custom function name expected after DEF');
+    $name = tokenBody(array_shift($tokens));
+    if (!preg_match('/^FN[A-Z]$/', $name)) {
+        throwLineError('Custom function name should be FNx where x = A..Z');
+    }
+    $res[] = $name;
+    expectToken(array_shift($tokens), 'p(', 'Expected "(" after function name');
+    expectTokenType($tokens, 'w', 'Function argument name expected');
+    $arg = array_shift($tokens);
+    $arg[0] = 'v';
+    expectToken(array_shift($tokens), 'p)', 'Expected ")" after function parameter');
+    expectToken(array_shift($tokens), 'o=', 'Expected "=" after function name and parameter');
+    $expr = takeExpr($tokens);
+    foreach ($expr as &$elem) {
+        if ($elem == $arg) {
+            $elem = 'v_1';
+        }
+    }
+    $res[] = $expr;
     return $res;
 }
 

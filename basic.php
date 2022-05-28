@@ -119,6 +119,9 @@ class BasicInterpreter {
                     case 'DIM':
                         $this->execDim($stmt);
                         break;
+                    case 'DEF':
+                        $this->execDef($stmt);
+                        break;
                     case 'END':
                         return;
                     default:
@@ -297,6 +300,23 @@ class BasicInterpreter {
                 throwLineError("Index#$i out of range: {$subs[$i]}");
             }
         }
+    }
+
+    function execDef(&$stmt) {
+        $name = $stmt[1];
+        if ($this->funcs[$name]) {
+            throwLineError("Function $name already defined");
+        }
+        $expr = $stmt[2];
+        $this->funcs[$stmt[1]] = function($x) use ($expr) {
+            $saved = $this->vars['_1'];
+            $this->vars['_1'] = $x;
+            $res = $this->evalExpr($expr);
+            if ($saved !== null) {
+                $this->vars['_1'] = $saved;
+            }
+            return $res;
+        };
     }
 
     function evalExpr(&$expr, &$stack = null) {

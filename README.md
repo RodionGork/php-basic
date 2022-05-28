@@ -8,7 +8,10 @@ Basic language interpreter in PHP
 
 _interactive mode (REPL) is not added yet, mainly due to lack of usage for it_
 
-### Statements already working
+### Supported statements
+
+We follow "mainstream" from original (Dartmouth) BASIC which was also widely
+found in "home computers era", like Apple, Commodore, ZX Spectrum.
 
 - `IF` ... `THEN` (no else, multiple statements per line, old-school style)
 - `PRINT` with commans and semicolons
@@ -16,9 +19,10 @@ _interactive mode (REPL) is not added yet, mainly due to lack of usage for it_
 - `GOTO` and `GOSUB` allowing expression as argument, `RETURN`
 - `FOR` and `NEXT` statements (with optional positive `STEP`)
 - `READ`, `DATA` and `RESTORE`
-- `DIM`
+- `DIM` allocating arrays
+- `DEF` for defining custom functions
 - `LET` which could be omitted in assignment
-- `END`
+- `END` which just stops the program
 - `REM` skips till the end of line
 
 ### Supported operations
@@ -34,10 +38,6 @@ _interactive mode (REPL) is not added yet, mainly due to lack of usage for it_
     SIN COS TAN ATN
     EXP SQL LOG - first two could also be represented with power operator
     RND - requires argument but ignores it
-
-### Statements to implement yet
-
-- `DEFFN` for user's functions
 
 ### Extra features yet to come
 - arrays declared with no dimension to serve as hashtables (e.g. using string variables)
