@@ -25,10 +25,10 @@ function isSpace($c) {
     return strpos(" \t\r\n", $c) !== false;
 }
 
-function scanInput() {
+function scanInput($inputStream) {
     $val = '';
     while (1) {
-        $c = fgetc(STDIN);
+        $c = fgetc($inputStream);
         if ($c === false) {
             throwLineError('Unexpected end of input');
         }
@@ -38,7 +38,7 @@ function scanInput() {
         }
     }
     while (1) {
-        $c = fgetc(STDIN);
+        $c = fgetc($inputStream);
         if ($c === false || isSpace($c)) {
             break;
         }

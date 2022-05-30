@@ -20,8 +20,11 @@ class BasicInterpreter {
     public $sourceLineNums = [];
     private $binaryOps = [];
     private $funcs = [];
+    private $inputStream = null;
 
-    function __construct() {
+    function __construct($input = null) {
+        $this->inputStream = $input == null ? STDIN
+            : fopen('data://text/plain;base64,' . base64_encode($input), 'r');
         $this->setupBinaryOps();
         $this->setupFunctions();
     }
@@ -146,7 +149,7 @@ class BasicInterpreter {
             if (is_string($expr)) {
                 echo tokenBody($expr);
             } else {
-                $this->setVariable($expr, scanInput());
+                $this->setVariable($expr, scanInput($this->inputStream));
             }
         }
     }
@@ -292,11 +295,13 @@ class BasicInterpreter {
             return;
         }
         $n = count($dims);
-        if (count($subs) != $n) {
-            throwLineError("Wrong number of subscripts, should be $n");
+        $ns = count($subs);
+        if ($ns < $n) {
+            throwLineError("Not enough subscripts, should be $n");
         }
+        $offs = $ns - $n;
         for ($i = 0; $i < $n; $i++) {
-            if ($subs[$i] >= $dims[$i]) {
+            if ($subs[$i + $offs] >= $dims[$i]) {
                 throwLineError("Index#$i out of range: {$subs[$i]}");
             }
         }
@@ -341,7 +346,8 @@ class BasicInterpreter {
             } elseif ($v[0] == 'a') {
                 $name = tokenBody($v);
                 $idx = $this->arrayIndex($name, $stack);
-                array_splice($stack, 0, null, $this->arrays[$name][$idx]);
+                $arrsz = count($this->dims[$name]);
+                array_splice($stack, -$arrsz, $arrsz, $this->arrays[$name][$idx]);
             }
         }
         return $stack[0];
@@ -353,9 +359,10 @@ class BasicInterpreter {
         }
         $dims = &$this->dims[$name];
         $this->checkSubscripts($subs, $dims);
-        $idx = $subs[0];
+        $offs = count($subs) - count($dims);
+        $idx = $subs[$offs];
         for ($i = 1; $i < count($dims); $i++) {
-            $idx = $idx * $dims[$i] + $subs[$i];
+            $idx = $idx * $dims[$i] + $subs[$i + $offs];
         }
         return $idx;
     }
