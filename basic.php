@@ -22,9 +22,7 @@ class BasicInterpreter {
     private $funcs = [];
     private $inputStream = null;
 
-    function __construct($input = null) {
-        $this->inputStream = $input == null ? STDIN
-            : fopen('data://text/plain;base64,' . base64_encode($input), 'r');
+    function __construct() {
         $this->setupBinaryOps();
         $this->setupFunctions();
     }
@@ -63,19 +61,29 @@ class BasicInterpreter {
         }
     }
 
-    function run() {
+    function run($input = null, $limit = INF) {
+        $this->setInput($input);
         $errData = $this->extractData();
         if ($errData) {
             return $errData;
         }
-        return $this->executeCode();
+        return $this->executeCode($limit);
     }
 
-    function executeCode() {
+    function setInput($input) {
+        $this->inputStream = $input == null ? STDIN
+            : fopen('data://text/plain;base64,' . base64_encode($input), 'r');
+    }
+
+    function executeCode($limit) {
+        $opcount = 0;
         $pc = 0;
         $pc2 = 0;
         try {
             while ($pc < count($this->code)) {
+                if ($opcount++ >= $limit) {
+                    throwLineError("Execution limit reached: $limit statements");
+                }
                 $lineNum = $this->sourceLineNums[$pc];
                 $line = &$this->code[$pc];
                 $stmt = &$line[$pc2];
