@@ -48,7 +48,7 @@ function &tokenize($line) {
         $match = $m[0];
         $line = substr($line, strlen($match));
         if ($type == 'q') {
-            $match = substr($match, 1, -1);
+            $match = str_replace('""', '"', substr($match, 1, -1));
         }
         $res[] = "$type$match";
         if ($type == 'e') {
