@@ -34,10 +34,17 @@ found in "home computers era", like Apple, Commodore, ZX Spectrum.
 
 ### Supported built-in functions
 
+Numerical functions:
+
     ABS SGN INT
     SIN COS TAN ATN
-    EXP SQL LOG - first two could also be represented with power operator
+    EXP SQR LOG - first two could also be represented with power operator
     RND - requires argument but ignores it
+
+Text functions:
+    ASC CHR - character to code - and back conversion
+    MID LEFT RIGHT - taking substrings
+    LEN
 
 ### Extra features yet to come
 - arrays declared with no dimension to serve as hashtables (e.g. using string variables)

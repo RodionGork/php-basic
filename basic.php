@@ -20,6 +20,7 @@ class BasicInterpreter {
     public $sourceLineNums = [];
     private $binaryOps = [];
     private $funcs = [];
+    private $funcArgs = [];
     private $inputStream = null;
 
     function __construct() {
@@ -351,6 +352,9 @@ class BasicInterpreter {
             } elseif ($v[0] == 'f') {
                 $v1 = array_pop($stack);
                 $stack[] = call_user_func($this->funcs[$body], $v1);
+            } elseif ($v[0] == 'F') {
+                $v1 = array_splice($stack, -funcArgCnt[$body]);
+                $stack[] = call_user_func_array($this->funcs[$body], $v1);
             } elseif ($v[0] == 'a') {
                 $name = tokenBody($v);
                 $idx = $this->arrayIndex($name, $stack);
@@ -418,10 +422,20 @@ class BasicInterpreter {
     function setupFunctions() {
         $this->funcs['ABS'] = function($x) { return $x >= 0 ? $x : -$x; };
         $this->funcs['ATN'] = function($x) { return atan($x); };
+        $this->funcs['ASC'] = function($x) { return ord($x); };
+        $this->funcs['CHR'] = function($x) {
+            return ($x == intval($x) && $x > 31 && $x < 128) ? chr($x) : ""; };
         $this->funcs['COS'] = function($x) { return cos($x); };
         $this->funcs['EXP'] = function($x) { return exp($x); };
         $this->funcs['INT'] = function($x) { return intval($x); };
+        $this->funcs['LEFT'] = function($s, $len) {
+            return substr($s, 0, $len); };
+        $this->funcs['LEN'] = function($s) { return strlen($s); };
         $this->funcs['LOG'] = function($x) { return log($x); };
+        $this->funcs['MID'] = function($s, $pos, $len) {
+            return substr($s, $pos, $len); };
+        $this->funcs['RIGHT'] = function($s, $len) {
+            return substr($s, -$len); };
         $this->funcs['RND'] = function($x) { return rand() / (getrandmax() + 1); };
         $this->funcs['SIN'] = function($x) { return sin($x); };
         $this->funcs['SGN'] = function($x) { return ($x > 0) - ($x < 0); };

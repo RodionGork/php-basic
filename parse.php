@@ -6,8 +6,9 @@ require_once 'utils.php';
 
 const relops = ['o=', 'o>', 'o<', 'o>=', 'o<=', 'o<>'];
 
-const funcs = ['ABS', 'ATN', 'COS', 'EXP', 'INT', 'LOG', 'RND', 'SIN', 'SGN',
-    'SQR', 'TAN'];
+const funcArgCnt = ['ABS' =>1 , 'ATN' => 1, 'ASC' => 1, 'CHR' => 1, 'COS' => 1,
+    'EXP' => 1, 'INT' => 1, 'LEFT' => 2, 'LEN' => 1, 'LOG' => 1, 'MID' => 3,
+    'RIGHT' => 2, 'RND' => 1, 'SIN' => 1, 'SGN' => 1, 'SQR' => 1, 'TAN' => 1];
 
 function stripLabel(&$tokens) {
     $tkn0 = $tokens[0];
@@ -227,22 +228,25 @@ function takeAssign(&$tokens) {
 function takeVariable(&$tokens, $funcsAlso = false) {
     expectTokenType($tokens[0], 'w', 'Variable expected');
     $name = array_shift($tokens);
+    $pureName = tokenBody($name);
     if (!$tokens || $tokens[0] != 'p(') {
         $name[0] = 'v';
         return [$name];
     }
     array_shift($tokens);
-    if (isFuncName(tokenBody($name))) {
+    $isFunc = isFuncName(tokenBody($name));
+    if ($isFunc) {
         if (!$funcsAlso) {
-            throwLineError("Function $name isn't expected here");
+            throwLineError("Function $pureName isn't expected here");
         }
-        $name[0] = 'f';
+        $name[0] = $isFunc > 1 ? 'F' : 'f';
         $msgPart = 'array subscripts';
     } else {
         $name[0] = 'a';
         $msgPart = 'function arguments';
     }
     $funcExpr = takeExpr($tokens);
+    $subCnt = 1;
     while (1) {
         if (!$tokens) {
             throwLineError("Unexpected end of $msgPart");
@@ -252,6 +256,10 @@ function takeVariable(&$tokens, $funcsAlso = false) {
             break;
         }
         array_add($funcExpr, takeExpr($tokens));
+        $subCnt++;
+    }
+    if ($isFunc !== $subCnt) {
+        throwLineError("Function $pureName expects $isFunc argument(s)");
     }
     $funcExpr[] = $name;
     return $funcExpr;
@@ -380,5 +388,8 @@ function takeNegVal(&$tokens) {
 }
 
 function isFuncName($name) {
-    return in_array($name, funcs) || preg_match('/^FN[A-Z]/', $name);
+    if (array_key_exists($name, funcArgCnt)) {
+        return funcArgCnt[$name];
+    }
+    return preg_match('/^FN[A-Z]/', $name) ? 1 : 0;
 }
