@@ -258,7 +258,7 @@ function takeVariable(&$tokens, $funcsAlso = false) {
         array_add($funcExpr, takeExpr($tokens));
         $subCnt++;
     }
-    if ($isFunc !== $subCnt) {
+    if ($isFunc != 0 && $isFunc !== $subCnt) {
         throwLineError("Function $pureName expects $isFunc argument(s)");
     }
     $funcExpr[] = $name;
