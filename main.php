@@ -9,7 +9,9 @@ $lines = explode("\n", file_get_contents($file));
 
 $basic->parseLines($lines);
 
-//var_export($basic->code); echo "\n";
+if (getenv('PARSED_JS')) {
+    file_put_contents(getenv('PARSED_JS'), 'const parsed = ' . $basic->exportParsedAsJson() . ";\n");
+}
 
 if (!$basic->errors) {
     $err = $basic->run();

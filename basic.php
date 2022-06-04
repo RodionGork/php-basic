@@ -45,6 +45,9 @@ class BasicInterpreter {
                     $stmt = takeStatement($tokens);
                     if ($stmt) {
                         $stmt[0] = tokenBody($stmt[0]);
+                        if ($stmt[0] == 'DATA' && $out) {
+                            throwLineError('DATA statement should be first in its line');
+                        }
                         $out[] = $stmt;
                     }
                     if ($tokens) {
@@ -389,11 +392,6 @@ class BasicInterpreter {
                         $this->readdata[] = $this->evalExpr($stmt[$i]);
                     }
                 }
-                for ($i = 1; $i < count($line); $i++) {
-                    if ($line[$i][0] == 'DATA') {
-                        throwLineError('DATA statement should be first in its line');
-                    }
-                }
             }
         } catch (SyntaxException $e) {
             return "Runtime error (line #$lineNum): {$e->getMessage()}";
@@ -441,6 +439,11 @@ class BasicInterpreter {
         $this->funcs['SGN'] = function($x) { return ($x > 0) - ($x < 0); };
         $this->funcs['SQR'] = function($x) { return sqrt($x); };
         $this->funcs['TAN'] = function($x) { return tan($x); };
+    }
+
+    function exportParsedAsJson() {
+        return json_encode(['code' => $this->code, 'labels' => $this->labels,
+            'sourceLineNums' => $this->sourceLineNums, 'errors' => $this->errors]);
     }
 
 }
