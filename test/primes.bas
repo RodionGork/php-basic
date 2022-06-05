@@ -1,4 +1,4 @@
-N = 1000
+N = 100
 DIM P(N)
 DATA 2,3,5,7
 FOR I = 0 TO 3 : READ P(I) : NEXT I

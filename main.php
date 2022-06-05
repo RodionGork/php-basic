@@ -17,24 +17,12 @@ if (!$basic->errors) {
     $err = $basic->run();
     if ($err) {
         echo "$err\n";
+        exit(2);
     }
 } else {
     echo "Code not executed because of parse errors:\n";
     foreach ($basic->errors as $err) {
         echo "    $err\n";
     }
+    exit(1);
 }
-
-/*
-
-expr: andop
-orop: andop [or andop]*
-andop: cmp [and cmp]*
-cmp: sum [relop sum]
-sum:  prod [+ or - prod]*
-prod: pwr [* or / pwr]*
-pwr: value [^ pwr]?
-value: [-]pvalue
-pvalue: num or (expr) or func(expr) or var or var(subscr)
-subscr: expr [, expr]*
-*/

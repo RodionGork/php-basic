@@ -15,9 +15,11 @@ class BasicInterpreter {
     public $errors = [];
     public $vars = [];
     public $arrays = [];
-    public $dims = [];
-    public $callStack = [];
-    public $sourceLineNums = [];
+    private $dims = [];
+    private $pc = 0;
+    private $pc2 = 0;
+    private $callStack = [];
+    private $sourceLineNums = [];
     private $binaryOps = [];
     private $funcs = [];
     private $funcArgs = [];
@@ -81,41 +83,41 @@ class BasicInterpreter {
 
     function executeCode($limit) {
         $opcount = 0;
-        $pc = 0;
-        $pc2 = 0;
+        $this->pc = 0;
+        $this->pc2 = 0;
         try {
-            while ($pc < count($this->code)) {
+            while ($this->pc < count($this->code)) {
                 if ($opcount++ >= $limit) {
                     throwLineError("Execution limit reached: $limit statements");
                 }
-                $lineNum = $this->sourceLineNums[$pc];
-                $line = &$this->code[$pc];
-                $stmt = &$line[$pc2];
-                if (++$pc2 >= count($line)) {
-                    $pc++;
-                    $pc2 = 0;
+                $lineNum = $this->sourceLineNums[$this->pc];
+                $line = &$this->code[$this->pc];
+                $stmt = &$line[$this->pc2];
+                if (++$this->pc2 >= count($line)) {
+                    $this->pc++;
+                    $this->pc2 = 0;
                 }
                 switch ($stmt[0]) {
                     case 'LET':
                         $this->execAssign($stmt);
                         break;
                     case 'IF':
-                        $this->execIfThen($stmt, $pc, $pc2);
+                        $this->execIfThen($stmt);
                         break;
                     case 'FOR':
-                        $this->execFor($stmt, $pc, $pc2);
+                        $this->execFor($stmt);
                         break;
                     case 'NEXT':
-                        $this->execNext($stmt, $pc, $pc2);
+                        $this->execNext($stmt);
                         break;
                     case 'GOTO':
-                        $this->execGoto($stmt, $pc, $pc2);
+                        $this->execGoto($stmt);
                         break;
                     case 'GOSUB':
-                        $this->execGosub($stmt, $pc, $pc2);
+                        $this->execGosub($stmt);
                         break;
                     case 'RETURN':
-                        $this->execReturn($stmt, $pc, $pc2);
+                        $this->execReturn($stmt);
                     case 'REM':
                     case 'DATA':
                         break;
@@ -205,16 +207,16 @@ class BasicInterpreter {
         return $value;
     }
 
-    function execIfThen(&$stmt, &$pc, &$pc2) {
+    function execIfThen(&$stmt) {
         $res = $this->evalExpr($stmt[1]);
         if ($res !== 0 && $res !== '' && $res !== false) {
             return;
         }
-        $pc++;
-        $pc2 = 0;
+        $this->pc++;
+        $this->pc2 = 0;
     }
 
-    function execFor(&$stmt, $pc, $pc2) {
+    function execFor(&$stmt) {
         $var = tokenBody($stmt[1]);
         $from = $this->evalExpr($stmt[2]);
         $till = $this->evalExpr($stmt[3]);
@@ -222,11 +224,11 @@ class BasicInterpreter {
         if ($step <= 0) {
             throwLineError('Negative or zero STEP in FOR is not allowed');
         }
-        $this->callStack[] = ['f', $var, $step, $till, $pc, $pc2];
+        $this->callStack[] = ['f', $var, $step, $till, $this->pc, $this->pc2];
         $this->vars[$var] = $from;
     }
 
-    function execNext(&$stmt, &$pc, &$pc2) {
+    function execNext(&$stmt) {
         $frame = null;
         if ($this->callStack) {
             $frame = $this->callStack[count($this->callStack) - 1];
@@ -244,30 +246,30 @@ class BasicInterpreter {
             return;
         }
         $this->vars[$var] = $value;
-        $pc = $pcnext;
-        $pc2 = $pc2next;
+        $this->pc = $pcnext;
+        $this->pc2 = $pc2next;
     }
 
-    function execGoto(&$stmt, &$pc, &$pc2) {
+    function execGoto(&$stmt) {
         $label = $this->evalExpr($stmt[1]);
         if (!isset($this->labels[$label])) {
             throwLineError("No such label: $label");
         }
-        $pc = $this->labels[$label];
-        $pc2 = 0;
+        $this->pc = $this->labels[$label];
+        $this->pc2 = 0;
     }
 
-    function execGosub(&$stmt, &$pc, &$pc2) {
-        $this->callStack[] = ['c', $pc, $pc2];
-        $this->execGoto($stmt, $pc, $pc2);
+    function execGosub(&$stmt) {
+        $this->callStack[] = ['c', $this->pc, $this->pc2];
+        $this->execGoto($stmt, $this->pc, $this->pc2);
     }
 
-    function execReturn(&$stmt, &$pc, &$pc2) {
+    function execReturn(&$stmt) {
         while ($this->callStack) {
             $elem = array_pop($this->callStack);
             if ($elem[0] == 'c') {
-                $pc = $elem[1];
-                $pc2 = $elem[2];
+                $this->pc = $elem[1];
+                $this->pc2 = $elem[2];
                 return;
             }
         }
@@ -321,12 +323,12 @@ class BasicInterpreter {
 
     function execDef(&$stmt) {
         $name = $stmt[1];
-        if ($this->funcs[$name]) {
+        if (array_key_exists($name, $this->funcs)) {
             throwLineError("Function $name already defined");
         }
         $expr = $stmt[2];
         $this->funcs[$stmt[1]] = function($x) use ($expr) {
-            $saved = $this->vars['_1'];
+            $saved = array_key_exists('_1', $this->vars) ? $this->vars['_1'] : null;
             $this->vars['_1'] = $x;
             $res = $this->evalExpr($expr);
             if ($saved !== null) {
