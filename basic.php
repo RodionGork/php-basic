@@ -97,50 +97,40 @@ class BasicInterpreter {
                     $this->pc++;
                     $this->pc2 = 0;
                 }
+                //php 7.2+ optimizes this with jump table
                 switch ($stmt[0]) {
-                    case 'LET':
-                        $this->execAssign($stmt);
-                        break;
-                    case 'IF':
-                        $this->execIfThen($stmt);
-                        break;
-                    case 'FOR':
-                        $this->execFor($stmt);
-                        break;
-                    case 'NEXT':
-                        $this->execNext($stmt);
-                        break;
-                    case 'GOTO':
-                        $this->execGoto($stmt);
-                        break;
-                    case 'GOSUB':
-                        $this->execGosub($stmt);
-                        break;
-                    case 'RETURN':
-                        $this->execReturn($stmt);
-                    case 'REM':
+                    case 'DEF':
+                        $this->execDef($stmt); break;
                     case 'DATA':
                         break;
-                    case 'PRINT':
-                        $this->execPrint($stmt);
-                        break;
+                    case 'DIM':
+                        $this->execDim($stmt); break;
+                    case 'END':
+                        $this->pc = count($this->code); break;
+                    case 'FOR':
+                        $this->execFor($stmt); break;
+                    case 'GOSUB':
+                        $this->execGosub($stmt); break;
+                    case 'GOTO':
+                        $this->execGoto($stmt); break;
+                    case 'IF':
+                        $this->execIfThen($stmt); break;
                     case 'INPUT':
-                        $this->execInput($stmt);
-                        break;
+                        $this->execInput($stmt); break;
+                    case 'LET':
+                        $this->execAssign($stmt); break;
+                    case 'NEXT':
+                        $this->execNext($stmt); break;
+                    case 'PRINT':
+                        $this->execPrint($stmt); break;
                     case 'READ':
-                        $this->execRead($stmt);
+                        $this->execRead($stmt); break;
+                    case 'REM':
                         break;
                     case 'RESTORE':
-                        $this->execRestore($stmt);
-                        break;
-                    case 'DIM':
-                        $this->execDim($stmt);
-                        break;
-                    case 'DEF':
-                        $this->execDef($stmt);
-                        break;
-                    case 'END':
-                        return;
+                        $this->execRestore($stmt); break;
+                    case 'RETURN':
+                        $this->execReturn($stmt); break;
                     default:
                         throwLineError("Command not implemented: {$stmt[0]}\n");
                 }
