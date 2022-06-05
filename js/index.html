@@ -15,6 +15,8 @@ let basic = new BasicInterpreter(parsed);
 basic.output = function(msg) {
     document.getElementById('output').value += msg;
 }
+document.getElementById('output').value = '';
+basic.addInput('3 5\npediki medvediki');
 basic.run();
 </script>
 

@@ -141,127 +141,26 @@ class BasicInterpreter {
         return null;
     }
 
-    function execPrint(&$stmt) {
-        for ($i = 1; $i < count($stmt); $i++) {
-            echo $this->evalExpr($stmt[$i]);
-        }
-    }
-
-    function execInput(&$stmt) {
-        for ($i = 1; $i < count($stmt); $i++) {
-            $expr = $stmt[$i];
-            if (is_string($expr)) {
-                echo tokenBody($expr);
-            } else {
-                $this->setVariable($expr, scanInput($this->inputStream));
-            }
-        }
-    }
-
-    function execRead(&$stmt) {
-        for ($i = 1; $i < count($stmt); $i++) {
-            if ($this->readptr >= count($this->readdata)) {
-                throwLineError('Out of data for READ');
-            }
-            $expr = $stmt[$i];
-            $this->setVariable($expr, $this->readdata[$this->readptr++]);
-        }
-    }
-
-    function execRestore(&$stmt) {
-        $this->readptr = 0;
-    }
-
     function execAssign(&$stmt) {
         $value = $this->evalExpr($stmt[1]);
         $this->setVariable($stmt[2], $value);
     }
 
-    function setVariable(&$expr, $value) {
-        $name = tokenBody($expr[0]);
-        if (count($expr) == 1) {
-            $this->vars[$name] = $value;
-        } else {
-            $stack = [];
-            $this->evalExpr($expr[1], $stack);
-            $idx = $this->arrayIndex($name, $stack);
-            $this->arrays[$name][$idx] = $value;
+    function execDef(&$stmt) {
+        $name = $stmt[1];
+        if (array_key_exists($name, $this->funcs)) {
+            throwLineError("Function $name already defined");
         }
-    }
-
-    function getVariable($name) {
-        $value = $this->vars[$name];
-        if ($value === null) {
-            throwLineError("Variable not defined: $name");
-        }
-        return $value;
-    }
-
-    function execIfThen(&$stmt) {
-        if (!logicRes($this->evalExpr($stmt[1]))) {
-            $this->pc++;
-            $this->pc2 = 0;
-        }
-    }
-
-    function execFor(&$stmt) {
-        $var = tokenBody($stmt[1]);
-        $from = $this->evalExpr($stmt[2]);
-        $till = $this->evalExpr($stmt[3]);
-        $step = count($stmt) > 4 ? $this->evalExpr($stmt[4]) : 1;
-        if ($step <= 0) {
-            throwLineError('Negative or zero STEP in FOR is not allowed');
-        }
-        $this->callStack[] = ['f', $var, $step, $till, $this->pc, $this->pc2];
-        $this->vars[$var] = $from;
-    }
-
-    function execNext(&$stmt) {
-        $frame = null;
-        if ($this->callStack) {
-            $frame = $this->callStack[count($this->callStack) - 1];
-        }
-        if ($frame === null || array_shift($frame) != 'f') {
-            throwLineError('NEXT without preceding FOR execution');
-        }
-        list($var, $step, $till, $pcnext, $pc2next) = $frame;
-        if ($var != tokenBody($stmt[1])) {
-            throwLineError('NEXT for wrong variable, expected: ' . $var);
-        }
-        $value = $this->vars[$var] + $step;
-        if ($value > $till) {
-            array_pop($this->callStack);
-            return;
-        }
-        $this->vars[$var] = $value;
-        $this->pc = $pcnext;
-        $this->pc2 = $pc2next;
-    }
-
-    function execGoto(&$stmt) {
-        $label = $this->evalExpr($stmt[1]);
-        if (!isset($this->labels[$label])) {
-            throwLineError("No such label: $label");
-        }
-        $this->pc = $this->labels[$label];
-        $this->pc2 = 0;
-    }
-
-    function execGosub(&$stmt) {
-        $this->callStack[] = ['c', $this->pc, $this->pc2];
-        $this->execGoto($stmt);
-    }
-
-    function execReturn(&$stmt) {
-        while ($this->callStack) {
-            $elem = array_pop($this->callStack);
-            if ($elem[0] == 'c') {
-                $this->pc = $elem[1];
-                $this->pc2 = $elem[2];
-                return;
+        $expr = $stmt[2];
+        $this->funcs[$stmt[1]] = function($x) use ($expr) {
+            $saved = array_key_exists('_1', $this->vars) ? $this->vars['_1'] : null;
+            $this->vars['_1'] = $x;
+            $res = $this->evalExpr($expr);
+            if ($saved !== null) {
+                $this->vars['_1'] = $saved;
             }
-        }
-        throwLineError('RETURN executed but there was no GOSUB before');
+            return $res;
+        };
     }
 
     function execDim(&$stmt) {
@@ -282,6 +181,129 @@ class BasicInterpreter {
             }
             $this->arrays[$var] = array_fill(0, $p, 0);
         }
+    }
+
+    function execFor(&$stmt) {
+        $var = tokenBody($stmt[1]);
+        $from = $this->evalExpr($stmt[2]);
+        $till = $this->evalExpr($stmt[3]);
+        $step = count($stmt) > 4 ? $this->evalExpr($stmt[4]) : 1;
+        if ($step <= 0) {
+            throwLineError('Negative or zero STEP in FOR is not allowed');
+        }
+        $this->callStack[] = ['f', $var, $step, $till, $this->pc, $this->pc2];
+        $this->vars[$var] = $from;
+    }
+
+    function execGosub(&$stmt) {
+        $this->callStack[] = ['c', $this->pc, $this->pc2];
+        $this->execGoto($stmt);
+    }
+
+    function execGoto(&$stmt) {
+        $label = $this->evalExpr($stmt[1]);
+        if (!isset($this->labels[$label])) {
+            throwLineError("No such label: $label");
+        }
+        $this->pc = $this->labels[$label];
+        $this->pc2 = 0;
+    }
+
+    function execIfThen(&$stmt) {
+        if (!logicRes($this->evalExpr($stmt[1]))) {
+            $this->pc++;
+            $this->pc2 = 0;
+        }
+    }
+
+    function execInput(&$stmt) {
+        $stopOnSpace = true;
+        for ($i = 1; $i < count($stmt); $i++) {
+            $expr = $stmt[$i];
+            if (is_string($expr)) {
+                if ($expr !== '') {
+                    echo $expr;
+                } else {
+                    $stopOnSpace = false;
+                }
+            } else {
+                $this->setVariable($expr, scanInput($this->inputStream, $stopOnSpace));
+            }
+        }
+    }
+
+    function execNext(&$stmt) {
+        $frame = null;
+        if ($this->callStack) {
+            $frame = &$this->callStack[count($this->callStack) - 1];
+        }
+        if ($frame === null || $frame[0] != 'f') {
+            throwLineError('NEXT without preceding FOR execution');
+        }
+        list($ff, $var, $step, $till, $pcnext, $pc2next) = $frame;
+        if ($var != tokenBody($stmt[1])) {
+            throwLineError('NEXT for wrong variable, expected: ' . $var);
+        }
+        $value = $this->vars[$var] + $step;
+        if ($value > $till) {
+            array_pop($this->callStack);
+            return;
+        }
+        $this->vars[$var] = $value;
+        $this->pc = $pcnext;
+        $this->pc2 = $pc2next;
+    }
+
+    function execPrint(&$stmt) {
+        for ($i = 1; $i < count($stmt); $i++) {
+            echo $this->evalExpr($stmt[$i]);
+        }
+    }
+
+    function execRead(&$stmt) {
+        for ($i = 1; $i < count($stmt); $i++) {
+            if ($this->readptr >= count($this->readdata)) {
+                throwLineError('Out of data for READ');
+            }
+            $expr = $stmt[$i];
+            $this->setVariable($expr, $this->readdata[$this->readptr++]);
+        }
+    }
+
+    function execRestore(&$stmt) {
+        $this->readptr = 0;
+    }
+
+    function execReturn(&$stmt) {
+        while ($this->callStack) {
+            $elem = array_pop($this->callStack);
+            if ($elem[0] == 'c') {
+                $this->pc = $elem[1];
+                $this->pc2 = $elem[2];
+                return;
+            }
+        }
+        throwLineError('RETURN executed but there was no GOSUB before');
+    }
+
+    function setVariable(&$expr, $value) {
+        $name = tokenBody($expr[0]);
+        if (count($expr) == 1) {
+            $this->vars[$name] = $value;
+        } else {
+            $stack = [];
+            $this->evalExpr($expr[1], $stack);
+            $idx = $this->arrayIndex($name, $stack);
+            $this->arrays[$name][$idx] = $value;
+        }
+    }
+
+    function getVariable($name) {
+        $value = $this->vars[$name];
+        if ($value === null) {
+            throwLineError("Variable not defined: $name");
+        }
+        return $value;
     }
 
     function checkSubscripts(&$subs, &$dims = null) {
@@ -307,23 +329,6 @@ class BasicInterpreter {
                 throwLineError("Index#$i out of range: {$subs[$i]}");
             }
         }
-    }
-
-    function execDef(&$stmt) {
-        $name = $stmt[1];
-        if (array_key_exists($name, $this->funcs)) {
-            throwLineError("Function $name already defined");
-        }
-        $expr = $stmt[2];
-        $this->funcs[$stmt[1]] = function($x) use ($expr) {
-            $saved = array_key_exists('_1', $this->vars) ? $this->vars['_1'] : null;
-            $this->vars['_1'] = $x;
-            $res = $this->evalExpr($expr);
-            if ($saved !== null) {
-                $this->vars['_1'] = $saved;
-            }
-            return $res;
-        };
     }
 
     function evalExpr(&$expr, &$stack = null) {

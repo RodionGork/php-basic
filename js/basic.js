@@ -11,11 +11,16 @@ function BasicInterpreter(parsed) {
     this.pc = 0;
     this.pc2 = 0;
     this.callStack = [];
+    this.inputStream = [];
     
     this.output = function(text) {
         console.log(text);
     }
-    
+
+    this.addInput = function(text) {
+        text.split('').forEach(c => this.inputStream.push(c));
+    }
+
     this.run = function(input, limit) {
         this.input = !input ? null : input;
         if (!limit) {
@@ -51,37 +56,31 @@ function BasicInterpreter(parsed) {
                         this.execDim(stmt); break;
                     case 'END':
                         this.pc = this.code.length; break;
+                    case 'GOSUB':
+                        this.execGosub(stmt); break;
                     case 'GOTO':
                         this.execGoto(stmt); break;
+                    case 'FOR':
+                        this.execFor(stmt); break;
                     case 'IF':
                         this.execIfThen(stmt); break;
-                    case 'RETURN':
-                        this.execReturn(stmt); break;
+                    case 'INPUT':
+                        this.execInput(stmt); break;
                     case 'LET':
                         this.execAssign(stmt); break;
+                    case 'NEXT':
+                        this.execNext(stmt); break;
                     case 'PRINT':
                         this.execPrint(stmt); break;
+                    case 'READ':
+                        this.execRead(stmt); break;
                     case 'REM':
                         break;
-                    //---
-                    case 'FOR':
-                        this.execFor(stmt);
-                        break;
-                    case 'NEXT':
-                        this.execNext(stmt);
-                        break;
-                    case 'GOSUB':
-                        this.execGosub(stmt);
-                        break;
-                    case 'INPUT':
-                        this.execInput(stmt);
-                        break;
-                    case 'READ':
-                        this.execRead(stmt);
-                        break;
                     case 'RESTORE':
-                        this.execRestore(stmt);
-                        break;
+                        this.execRestore(stmt); break;
+                    case 'RETURN':
+                        this.execReturn(stmt); break;
+                    //---
                     case 'DEF':
                         this.execDef(stmt);
                         break;
@@ -99,68 +98,9 @@ function BasicInterpreter(parsed) {
         return null;
     }
     
-    this.execPrint = function(stmt) {
-        for (let i = 1; i < stmt.length; i++) {
-            this.output(this.evalExpr(stmt[i]));
-        }
-    }
-
     this.execAssign = function(stmt) {
         let value = this.evalExpr(stmt[1]);
         this.setVariable(stmt[2], value);
-    }
-
-    this.setVariable = function(expr, value) {
-        let name = tokenBody(expr[0]);
-        if (expr.length == 1) {
-            this.vars[name] = value;
-        } else {
-            let stack = [];
-            this.evalExpr(expr[1], stack);
-            let idx = this.arrayIndex(name, stack);
-            this.arrays[name][idx] = value;
-        }
-    }
-
-    this.getVariable = function(name) {
-        let value = this.vars[name];
-        if (value === undefined) {
-            throwLineError("Variable not defined: " + name);
-        }
-        return value;
-    }
-
-    this.execIfThen = function(stmt) {
-        if (!logicRes(this.evalExpr(stmt[1]))) {
-            this.pc++;
-            this.pc2 = 0;
-        }
-    }
-
-    this.execGoto = function(stmt) {
-        let label = this.evalExpr(stmt[1]);
-        if (this.labels[label] === undefined) {
-            throwLineError("No such label: " + label);
-        }
-        this.pc = this.labels[label];
-        this.pc2 = 0;
-    }
-
-    this.execGosub = function(stmt) {
-        this.callStack.push(['c', this.pc, this.pc2]);
-        this.execGoto(stmt);
-    }
-
-    this.execReturn = function(stmt) {
-        while (this.callStack.length) {
-            let elem = this.callStack.pop();
-            if (elem[0] == 'c') {
-                this.pc = elem[1];
-                this.pc2 = elem[2];
-                return;
-            }
-        }
-        throwLineError('RETURN executed but there was no GOSUB before');
     }
 
     this.execDim = function(stmt) {
@@ -181,6 +121,130 @@ function BasicInterpreter(parsed) {
             })
             this.arrays[vvar] = arrayFill(p, 0);
         }
+    }
+
+    this.execFor = function(stmt) {
+        let vvar = tokenBody(stmt[1]);
+        let from = this.evalExpr(stmt[2]);
+        let till = this.evalExpr(stmt[3]);
+        let step = stmt.length > 4 ? this.evalExpr(stmt[4]) : 1;
+        if (step <= 0) {
+            throwLineError('Negative or zero STEP in FOR is not allowed');
+        }
+        this.callStack.push(['f', vvar, step, till, this.pc, this.pc2]);
+        this.vars[vvar] = from;
+    }
+
+    this.execGosub = function(stmt) {
+        this.callStack.push(['c', this.pc, this.pc2]);
+        this.execGoto(stmt);
+    }
+
+    this.execGoto = function(stmt) {
+        let label = this.evalExpr(stmt[1]);
+        if (this.labels[label] === undefined) {
+            throwLineError("No such label: " + label);
+        }
+        this.pc = this.labels[label];
+        this.pc2 = 0;
+    }
+
+    this.execIfThen = function(stmt) {
+        if (!logicRes(this.evalExpr(stmt[1]))) {
+            this.pc++;
+            this.pc2 = 0;
+        }
+    }
+
+    this.execInput = function(stmt) {
+        let stopOnSpace = true;
+        for (let i = 1; i < stmt.length; i++) {
+            let expr = stmt[i];
+            if (typeof(expr) === 'string') {
+                if (expr !== '') {
+                    this.output(expr);
+                } else {
+                    stopOnSpace = false;
+                }
+            } else {
+                this.setVariable(expr, this.scanInput(stopOnSpace));
+            }
+        }
+    }
+
+    this.execNext = function(stmt) {
+        let frame = null;
+        if (this.callStack.length) {
+            frame = this.callStack[this.callStack.length - 1];
+        }
+        if (frame === null || frame[0] != 'f') {
+            throwLineError('NEXT without preceding FOR execution');
+        }
+        let vvar = frame[1];
+        //list('f', $var, $step, $till, $pcnext, $pc2next) = $frame;
+        if (vvar != tokenBody(stmt[1])) {
+            throwLineError('NEXT for wrong variable, expected: ' + vvar);
+        }
+        let value = this.vars[vvar] + frame[2];
+        if (value > frame[3]) {
+            this.callStack.pop();
+            return;
+        }
+        this.vars[vvar] = value;
+        this.pc = frame[4];
+        this.pc2 = frame[5];
+    }
+
+    this.execPrint = function(stmt) {
+        for (let i = 1; i < stmt.length; i++) {
+            this.output(this.evalExpr(stmt[i]));
+        }
+    }
+
+    this.execRead = function(stmt) {
+        for (let i = 1; i < stmt.length; i++) {
+            if (this.readptr >= this.readdata.length) {
+                throwLineError('Out of data for READ');
+            }
+            let expr = stmt[i];
+            this.setVariable(expr, this.readdata[this.readptr++]);
+        }
+    }
+
+    this.execRestore = function(stmt) {
+        this.readptr = 0;
+    }
+
+    this.execReturn = function(stmt) {
+        while (this.callStack.length) {
+            let elem = this.callStack.pop();
+            if (elem[0] == 'c') {
+                this.pc = elem[1];
+                this.pc2 = elem[2];
+                return;
+            }
+        }
+        throwLineError('RETURN executed but there was no GOSUB before');
+    }
+
+    this.setVariable = function(expr, value) {
+        let name = tokenBody(expr[0]);
+        if (expr.length == 1) {
+            this.vars[name] = value;
+        } else {
+            let stack = [];
+            this.evalExpr(expr[1], stack);
+            let idx = this.arrayIndex(name, stack);
+            this.arrays[name][idx] = value;
+        }
+    }
+
+    this.getVariable = function(name) {
+        let value = this.vars[name];
+        if (value === undefined) {
+            throwLineError("Variable not defined: " + name);
+        }
+        return value;
     }
 
     this.checkSubscripts = function(subs, dims) {
@@ -226,7 +290,7 @@ function BasicInterpreter(parsed) {
                 stack.push(this.binaryOps[body](v1, v2));
             } else if (v[0] == 'f') {
                 let v1 = stack.pop();
-                stack.push(call_user_func(funcs[body], v1));
+                stack.push(this.funcs[body](v1));
             } else if (v[0] == 'F') {
                 let v1 = array_splice(stack, -funcArgCnt[body]);
                 stack.push(call_user_func_array(funcs[body], v1));
@@ -298,6 +362,16 @@ function BasicInterpreter(parsed) {
         '|': (a, b) => {return logicRes(a || b)},
     }
 
+    this.funcs = {
+        'ABS': x => Math.abs(x),
+        'ATN': x => Math.atan(x),
+        'ASC': s => s.charCodeAt(0),
+        'CHR': x => (x > 31 && x < 128) ? String.fromCharCode(x) : '',
+        'COS': x => Math.cos(x),
+        'EXP': x => Math.exp(x),
+        'LEN': s => s.length,
+    }
+
     function logicRes(v) {
         return v ? 1 : 0;
     }
@@ -308,5 +382,31 @@ function BasicInterpreter(parsed) {
             res.push(val);
         }
         return res;
+    }
+
+    this.scanInput = function(stopOnSpace) {
+        let stopChars = stopOnSpace ? " \t\r\n" : "\r\n";
+        let val = '';
+        while (1) {
+            if (!this.inputStream.length) {
+                throwLineError('Unexpected end of input');
+            }
+            let c = this.inputStream.shift();
+            if (!stopChars.includes(c)) {
+                val = c;
+                break;
+            }
+        }
+        while (1) {
+            if (!this.inputStream.length) {
+                break;
+            }
+            let c = this.inputStream.shift();
+            if (stopChars.includes(c)) {
+                break;
+            }
+            val += c;
+        }
+        return isNaN(val) ? val : parseFloat(val);
     }
 }

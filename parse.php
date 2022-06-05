@@ -97,7 +97,7 @@ function takeInput(&$tokens, $isRead = false) {
             if ($tokens[0][0] != 'q' || $isRead) {
                 $res[] = takeLvalue($tokens);
             } else {
-                $res[] = array_shift($tokens);
+                $res[] = tokenBody(array_shift($tokens));
             }
         } else {
             $delim = array_shift($tokens);
