@@ -99,10 +99,10 @@ class BasicInterpreter {
                 }
                 //php 7.2+ optimizes this with jump table
                 switch ($stmt[0]) {
-                    case 'DEF':
-                        $this->execDef($stmt); break;
                     case 'DATA':
                         break;
+                    case 'DEF':
+                        $this->execDef($stmt); break;
                     case 'DIM':
                         $this->execDim($stmt); break;
                     case 'END':
@@ -198,12 +198,10 @@ class BasicInterpreter {
     }
 
     function execIfThen(&$stmt) {
-        $res = $this->evalExpr($stmt[1]);
-        if ($res !== 0 && $res !== '' && $res !== false) {
-            return;
+        if (!logicRes($this->evalExpr($stmt[1]))) {
+            $this->pc++;
+            $this->pc2 = 0;
         }
-        $this->pc++;
-        $this->pc2 = 0;
     }
 
     function execFor(&$stmt) {
@@ -251,7 +249,7 @@ class BasicInterpreter {
 
     function execGosub(&$stmt) {
         $this->callStack[] = ['c', $this->pc, $this->pc2];
-        $this->execGoto($stmt, $this->pc, $this->pc2);
+        $this->execGoto($stmt);
     }
 
     function execReturn(&$stmt) {

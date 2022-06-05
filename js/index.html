@@ -5,11 +5,16 @@
   <script src="basic.js"></script>
 </head>
 <body>
-
+<center>
 <h1>Executing parsed BASIC code</h1>
+
+<textarea id="output" style="width:640px;height:480px;" disabled="1"></textarea>
 
 <script>
 let basic = new BasicInterpreter(parsed);
+basic.output = function(msg) {
+    document.getElementById('output').value += msg;
+}
 basic.run();
 </script>
 

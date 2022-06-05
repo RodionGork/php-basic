@@ -10,6 +10,7 @@ function BasicInterpreter(parsed) {
     this.sourceLineNums = parsed['sourceLineNums'];
     this.pc = 0;
     this.pc2 = 0;
+    this.callStack = [];
     
     this.output = function(text) {
         console.log(text);
@@ -44,31 +45,33 @@ function BasicInterpreter(parsed) {
                     this.pc2 = 0;
                 }
                 switch (stmt[0]) {
-                    case 'LET':
-                        this.execAssign(stmt);
+                    case 'DATA':
                         break;
+                    case 'DIM':
+                        this.execDim(stmt); break;
+                    case 'END':
+                        this.pc = this.code.length; break;
+                    case 'GOTO':
+                        this.execGoto(stmt); break;
                     case 'IF':
-                        this.execIfThen(stmt);
+                        this.execIfThen(stmt); break;
+                    case 'RETURN':
+                        this.execReturn(stmt); break;
+                    case 'LET':
+                        this.execAssign(stmt); break;
+                    case 'PRINT':
+                        this.execPrint(stmt); break;
+                    case 'REM':
                         break;
+                    //---
                     case 'FOR':
                         this.execFor(stmt);
                         break;
                     case 'NEXT':
                         this.execNext(stmt);
                         break;
-                    case 'GOTO':
-                        this.execGoto(stmt);
-                        break;
                     case 'GOSUB':
                         this.execGosub(stmt);
-                        break;
-                    case 'RETURN':
-                        this.execReturn(stmt);
-                    case 'REM':
-                    case 'DATA':
-                        break;
-                    case 'PRINT':
-                        this.execPrint(stmt);
                         break;
                     case 'INPUT':
                         this.execInput(stmt);
@@ -79,14 +82,9 @@ function BasicInterpreter(parsed) {
                     case 'RESTORE':
                         this.execRestore(stmt);
                         break;
-                    case 'DIM':
-                        this.execDim(stmt);
-                        break;
                     case 'DEF':
                         this.execDef(stmt);
                         break;
-                    case 'END':
-                        return;
                     default:
                         throwLineError("Command not implemented: " + stmt[0]);
                 }
@@ -132,6 +130,13 @@ function BasicInterpreter(parsed) {
         return value;
     }
 
+    this.execIfThen = function(stmt) {
+        if (!logicRes(this.evalExpr(stmt[1]))) {
+            this.pc++;
+            this.pc2 = 0;
+        }
+    }
+
     this.execGoto = function(stmt) {
         let label = this.evalExpr(stmt[1]);
         if (this.labels[label] === undefined) {
@@ -139,6 +144,23 @@ function BasicInterpreter(parsed) {
         }
         this.pc = this.labels[label];
         this.pc2 = 0;
+    }
+
+    this.execGosub = function(stmt) {
+        this.callStack.push(['c', this.pc, this.pc2]);
+        this.execGoto(stmt);
+    }
+
+    this.execReturn = function(stmt) {
+        while (this.callStack.length) {
+            let elem = this.callStack.pop();
+            if (elem[0] == 'c') {
+                this.pc = elem[1];
+                this.pc2 = elem[2];
+                return;
+            }
+        }
+        throwLineError('RETURN executed but there was no GOSUB before');
     }
 
     this.execDim = function(stmt) {
