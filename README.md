@@ -48,4 +48,14 @@ Text functions:
 
 ### Extra features yet to come
 - arrays declared with no dimension to serve as hashtables (e.g. using string variables)
-- string functions
+
+### Javascript Executor
+
+As program execution consists of two steps (slightly not in the mood of interpreted BASIC) - parsing and running,
+we provide Javascript runner, which can take parsed code (in form of JSON) as input. To export parsed code we
+still need PHP first, for example:
+
+    PARSED_JS=js/parsed.js php main.js someprogram.bas
+
+This feature has specific intended usage (running in-browser visualization for "arcade" type of coding
+problems) so probably it is of no interest for general user.

@@ -52,6 +52,8 @@ function BasicInterpreter(parsed) {
                 switch (stmt[0]) {
                     case 'DATA':
                         break;
+                    case 'DEF':
+                        this.execDef(stmt); break;
                     case 'DIM':
                         this.execDim(stmt); break;
                     case 'END':
@@ -80,10 +82,6 @@ function BasicInterpreter(parsed) {
                         this.execRestore(stmt); break;
                     case 'RETURN':
                         this.execReturn(stmt); break;
-                    //---
-                    case 'DEF':
-                        this.execDef(stmt);
-                        break;
                     default:
                         throwLineError("Command not implemented: " + stmt[0]);
                 }
@@ -101,6 +99,24 @@ function BasicInterpreter(parsed) {
     this.execAssign = function(stmt) {
         let value = this.evalExpr(stmt[1]);
         this.setVariable(stmt[2], value);
+    }
+
+    this.execDef = function(stmt) {
+        let name = stmt[1];
+        if (this.funcs[name] !== undefined) {
+            throwLineError("Function " + name + " already defined");
+        }
+        let expr = stmt[2];
+        let that = this;
+        this.funcs[name] = function(x) {
+            let saved = that.vars['_1'] !== undefined ? that.vars['_1'] : null;
+            that.vars['_1'] = x;
+            let res = that.evalExpr(expr);
+            if (saved !== null) {
+                that.vars['_1'] = saved;
+            }
+            return res;
+        };
     }
 
     this.execDim = function(stmt) {
@@ -369,7 +385,17 @@ function BasicInterpreter(parsed) {
         'CHR': x => (x > 31 && x < 128) ? String.fromCharCode(x) : '',
         'COS': x => Math.cos(x),
         'EXP': x => Math.exp(x),
+        'INT': x => Math.floor(x),
+        'LEFT': (s, n) => s.substr(0, n),
         'LEN': s => s.length,
+        'LOG': x => Math.log(x),
+        'MID': (s, n, p) => s.substr(n, p),
+        'RIGHT': (s, n) => s.substr(-n),
+        'RND': x => Math.random(),
+        'SIN': x => Math.sin(x),
+        'SGN': x => Math.sign(x),
+        'SQR': x => Math.sqrt(x),
+        'TAN': x => Math.tan(x),
     }
 
     function logicRes(v) {
