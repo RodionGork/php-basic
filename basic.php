@@ -24,8 +24,10 @@ class BasicInterpreter {
     private $funcs = [];
     private $funcArgs = [];
     private $inputStream = null;
+    private $intOnly = false;
 
-    function __construct() {
+    function __construct($opts = null) {
+        $this->intOnly = $opts !== null && $opts['intOnly'];
         $this->setupBinaryOps();
         $this->setupFunctions();
     }
@@ -46,6 +48,7 @@ class BasicInterpreter {
                 while (count($tokens) > 0) {
                     $stmt = takeStatement($tokens);
                     if ($stmt) {
+                        print_r($stmt);
                         $stmt[0] = tokenBody($stmt[0]);
                         if ($stmt[0] == 'DATA' && $out) {
                             throwLineError('DATA statement should be first in its line');
@@ -287,6 +290,7 @@ class BasicInterpreter {
     }
 
     function setVariable(&$expr, $value) {
+        if ($this->intOnly && is_float($value)) $value = intval($value);
         $name = tokenBody($expr[0]);
         if (count($expr) == 1) {
             $this->vars[$name] = $value;
@@ -410,6 +414,17 @@ class BasicInterpreter {
         $this->binaryOps['<>'] = function($a, $b) { return logicRes($a != $b); };
         $this->binaryOps['&'] = function($a, $b) { return logicRes($a && $b); };
         $this->binaryOps['|'] = function($a, $b) { return logicRes($a || $b); };
+        if ($this->intOnly) {
+            foreach (['+', '-', '*', '/', '%'] as $op) {
+                $wrapped = $this->binaryOps[$op];
+                $this->binaryOps[$op] = function($a, $b) use($wrapped) {
+                    if (is_float($a)) $a = intval($a);
+                    if (is_float($b)) $b = intval($b);
+                    $res = call_user_func($wrapped, $a, $b);
+                    return is_float($res) ? intval($res) : $res;
+                };
+            }
+        }
     }
 
     function setupFunctions() {
@@ -434,6 +449,13 @@ class BasicInterpreter {
         $this->funcs['SGN'] = function($x) { return ($x > 0) - ($x < 0); };
         $this->funcs['SQR'] = function($x) { return sqrt($x); };
         $this->funcs['TAN'] = function($x) { return tan($x); };
+        if ($this->intOnly) {
+            foreach(['ATN', 'COS', 'EXP', 'INT', 'LOG', 'RND', 'SIN', 'SQR', 'TAN'] as $name) {
+                $this->funcs[$name] = function($x) use ($name) {
+                    throwLineError("Function disabled in integer basic: $name");
+                };
+            }
+        }
     }
 
     function exportParsedAsJson() {
