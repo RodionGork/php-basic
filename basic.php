@@ -48,7 +48,7 @@ class BasicInterpreter {
                 while (count($tokens) > 0) {
                     $stmt = takeStatement($tokens);
                     if ($stmt) {
-                        print_r($stmt);
+                        //print_r($stmt);
                         $stmt[0] = tokenBody($stmt[0]);
                         if ($stmt[0] == 'DATA' && $out) {
                             throwLineError('DATA statement should be first in its line');
@@ -408,10 +408,10 @@ class BasicInterpreter {
         $this->binaryOps['^'] = function($a, $b) { return pow($a, $b); };
         $this->binaryOps['<'] = function($a, $b) { return logicRes($a < $b); };
         $this->binaryOps['>'] = function($a, $b) { return logicRes($a > $b); };
-        $this->binaryOps['='] = function($a, $b) { return logicRes($a == $b); };
+        $this->binaryOps['='] = function($a, $b) { return logicRes(is_string($a) == is_string($b) && $a == $b); };
         $this->binaryOps['<='] = function($a, $b) { return logicRes($a <= $b); };
         $this->binaryOps['>='] = function($a, $b) { return logicRes($a >= $b); };
-        $this->binaryOps['<>'] = function($a, $b) { return logicRes($a != $b); };
+        $this->binaryOps['<>'] = function($a, $b) { return logicRes(is_string($a) != is_string($b) || $a != $b); };
         $this->binaryOps['&'] = function($a, $b) { return logicRes($a && $b); };
         $this->binaryOps['|'] = function($a, $b) { return logicRes($a || $b); };
         if ($this->intOnly) {
