@@ -80,7 +80,7 @@ class BasicInterpreter {
     }
 
     function setInput($input) {
-        $this->inputStream = $input == null ? STDIN
+        $this->inputStream = $input == null ? fopen('php://stdin', 'r')
             : fopen('data://text/plain;base64,' . base64_encode($input), 'r');
     }
 
