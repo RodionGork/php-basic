@@ -73,6 +73,7 @@ class BasicInterpreter {
     function run($input = null, $limit = INF) {
         $this->setInput($input);
         $errData = $this->extractData();
+        $this->stripRemarks();
         if ($errData) {
             return $errData;
         }
@@ -90,15 +91,18 @@ class BasicInterpreter {
         $this->pc2 = 0;
         try {
             while ($this->pc < count($this->code)) {
-                if ($opcount++ >= $limit) {
-                    throwLineError("Execution limit reached: $limit statements");
-                }
                 $lineNum = $this->sourceLineNums[$this->pc];
                 $line = &$this->code[$this->pc];
                 $stmt = &$line[$this->pc2];
                 if (++$this->pc2 >= count($line)) {
                     $this->pc++;
                     $this->pc2 = 0;
+                }
+                if (!isset($stmt)) {
+                    continue;
+                }
+                if ($opcount++ >= $limit) {
+                    throwLineError("Execution limit reached: $limit statements");
                 }
                 //php 7.2+ optimizes this with jump table
                 switch ($stmt[0]) {
@@ -396,6 +400,17 @@ class BasicInterpreter {
             return "Runtime error (line #$lineNum): {$e->getMessage()}";
         }
         return null;
+    }
+
+    function stripRemarks() {
+        foreach ($this->code as &$line) {
+            for ($i = 0; $i < count($line); $i++) {
+                if ($line[$i][0] === 'REM') {
+                    array_splice($line, $i);
+                    continue 2;
+                }
+            }
+        }
     }
 
     function setupBinaryOps() {
